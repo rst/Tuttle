@@ -1,0 +1,5 @@
+role wipeout
+  hosts a b
+
+role other
+  hosts b

@@ -1,0 +1,6 @@
+foo $tuttle:id$ bar $tuttle:fred$ zot
+zzz log $tuttle:slae_log_dir$
+fu $tuttle:ricky$ bar $tuttle:id$ zt
+xxx conf $tuttle:slae_conf_dir$ slae $tuttle:slae_dir$
+a $tuttle:fred$ b
+

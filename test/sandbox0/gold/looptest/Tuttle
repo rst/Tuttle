@@ -1,0 +1,13 @@
+role a
+  has b
+
+role b
+  has c d
+
+role c
+  has e f
+
+role e
+
+role f
+  has b

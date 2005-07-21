@@ -1,0 +1,39 @@
+#! /usr/bin/perl -w
+
+use FindBin;
+use strict;
+
+my $rcdir  = $FindBin::Bin . '/../etc/rc.d/init.d';
+chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
+
+if ($#ARGV < 0) {
+  my @services = <*>;
+  for my $service (@services) {
+    my $enabled = (-e "../enabled/$service");
+    print $service, ' ', $enabled ? 'on' : 'off', "\n";
+  }
+  exit (0);
+}
+
+if ($#ARGV != 1) {
+  die "Sorry -- not mocking up more of chkconfig than we have to.";
+}
+
+my ($service, $flag) = @ARGV;
+
+if ($flag ne 'on' && $flag ne 'off') {
+  die "Sorry -- not mocking up more of chkconfig than we have to.";
+}
+
+if (! -f $service) {
+  die "Service $service not installed";
+}
+
+if ($flag eq 'on' && ! -e "../enabled/$service") {
+  link $service, "../enabled/$service"
+    or die "Couldn't create link to $service: $!"
+}
+elsif ($flag eq 'off' && -e "../enabled/$service") {
+  unlink "../enabled/$service"
+    or die "Couldn't remove link to $service: $!"
+}
