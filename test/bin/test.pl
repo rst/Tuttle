@@ -64,7 +64,7 @@ $c->install ('wiper');
 sub install_test {
   my ($ref_name) = @_;
   my $dir_name = "$FindBin::Bin/../$ref_name";
-  if (0 != system ("diff -qr $dir_name $FindBin::Bin/../tmp/sandbox")) {
+  if (0 != system ("diff -qr --exclude=CVS $dir_name $sandbox")) {
     die "Unexpected differences with $dir_name";
   }
 }
