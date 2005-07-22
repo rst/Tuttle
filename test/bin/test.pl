@@ -53,6 +53,7 @@ $c->install ('wiper');
 
 print "Install pratt\n";
 $c->install ('pratt');
+system ("ls -ld $sandbox/var/log/slae/test0 $sandbox/var/spool/slae-config/test0");
 &install_test ('sandbox.pratt');
 print "Reinstall as whitney\n";
 $c->install ('whitney');
@@ -64,7 +65,7 @@ $c->install ('wiper');
 sub install_test {
   my ($ref_name) = @_;
   my $dir_name = "$FindBin::Bin/../$ref_name";
-  if (0 != system ("diff -qr --exclude=CVS $dir_name $sandbox")) {
+  if (0 != system ("diff -qr --exclude=CVS --exclude=gold $dir_name $sandbox")) {
     die "Unexpected differences with $dir_name";
   }
 }

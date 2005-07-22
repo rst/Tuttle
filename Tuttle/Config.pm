@@ -335,6 +335,14 @@ sub install_dir {
 
   $self->ensure_dir_exists ($dir);
 
+  if (defined ($dir_spec->{owner})) {
+    $self->do_chown ($dir, $dir_spec->{owner});
+  }
+
+  if (defined ($dir_spec->{mode})) {
+    $self->do_chmod ($dir, $dir_spec->{mode});
+  }
+
   if (defined $dir_spec->{release}) {
     $self->run_command ($self->goldpull, $dir_spec->{release});
     $self->run_command ("/usr/bin/rsync", "--checksum", "--delete", "-a",
@@ -457,7 +465,11 @@ of the form
   { dir => $name,
     release => $tag,
     files => [ { src_name => $name, dst_name => $name }, ... ],
-    setup => "make ... " }
+    setup => "make ... ",
+    [owner => "..."]
+    [mode => "..."]
+    [recursive => "..."]
+  }
 
 =cut
 
@@ -518,6 +530,22 @@ sub ensure_dir_exists {
 sub wipe_directory {
   my ($self, $dir) = @_;
   rmtree $self->{install_prefix} . $dir;
+}
+
+sub do_chown {
+  my ($self, $dir, $owner) = @_;
+  if ($self->{install_prefix}) {
+    print "Chown $dir to $owner\n";
+  }
+  else {
+    $self->run_command ('/bin/chown', $owner, $dir);
+  }
+}
+
+sub do_chmod {
+  my ($self, $dir, $mode) = @_;
+  print "Chmod $dir to $mode\n";
+  chmod oct($mode), $self->{install_prefix}.$dir;
 }
 
 sub run_command {
@@ -633,12 +661,10 @@ sub parse_role {
        } elsif ($decl eq 'crontab') {
 	 push @{$self->{roles}{$role_name}{crontabs}}, @decl_args;
        } elsif ($decl eq 'dir') {
-	 if ($#decl_args != 1) {
-	   $self->syntax_error ($parse_state);
-	 }
 	 $self->{keywords}{$decl_args[0]} = $decl_args[1];
 	 push @{$self->{roles}{$role_name}{dirs}},
-	   $self->parse_dir ($decl_args[1], $parse_state);
+	   $self->parse_dir ($decl_args[1], $parse_state,
+			     @decl_args[2..$#decl_args]);
        }
        else {
 	 $self->syntax_error ($parse_state);
@@ -647,8 +673,21 @@ sub parse_role {
 }
 
 sub parse_dir {
-  my ($self, $dir_name, $parse_state) = @_;
+  my ($self, $dir_name, $parse_state, @flags) = @_;
   my $dir_spec = { dir => $dir_name };
+
+  for my $flag (@flags) {
+    my $eq_posn = index ($flag, '=');
+    if ($eq_posn < 0) {
+      $self->syntax_error ("Bad directory flag '$flag'");
+    }
+    my $flag_name = substr ($flag, 0, $eq_posn);
+    my $flag_val = substr ($flag, $eq_posn + 1);
+    if ($flag_name ne 'owner' && $flag_name ne 'mode') {
+      $self->syntax_error ("Unknown directory flag '$flag_name'");
+    }
+    $dir_spec->{$flag_name} = $flag_val;
+  }
 
   $self->with_lines_of_group
     ($parse_state, sub {
