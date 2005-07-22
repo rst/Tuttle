@@ -104,7 +104,11 @@ main reason for doing so is for the Tuttle test suite.
 
 sub install {
   my ($self, $hostname) = @_;
-  $hostname ||= `hostname`;
+
+  if (!defined ($hostname)) {
+    $hostname = `hostname`;
+    chomp $hostname;
+  }
 
   my $install_status =
     {
