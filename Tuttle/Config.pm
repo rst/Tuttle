@@ -204,7 +204,7 @@ sub install_role {
 
 sub crontab_prefix {
   my ($self) = @_;
-  return "/etc/cron.d/" . $self->{config_name} . ".";
+  return "/etc/cron.d/" . $self->{config_name} . "-";
 }
 
 sub crontab_name {
