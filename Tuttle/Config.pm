@@ -7,6 +7,8 @@ require Exporter;
 use IO::File;
 use File::Path;
 use File::Basename;
+use File::Spec;
+use File::Find;
 use strict;
 
 =head1 NAME
@@ -80,7 +82,7 @@ sub new {
   my $self = bless {}, $class;
 
   $self->{config_name} = $config_name;
-  $self->{basename} = dirname $filename;
+  $self->{basename} = File::Spec->rel2abs (dirname $filename);
   $self->{roles} = {};
   $self->{keywords} = { id => $config_name };
   $self->{install_prefix} = $phony_root || '';
@@ -361,6 +363,27 @@ sub install_dir {
   for my $file_spec (@{$dir_spec->{files}}) {
     $self->install_file_copy ($file_spec->{src_name}, $file_spec->{dst_name});
   }
+
+  if (defined ($dir_spec->{tree})) {
+    my $tree_base = $dir_spec->{tree}{src_name};
+    File::Find::find ({ no_chdir => 1,
+			wanted => sub {
+			  my $sub_file_name = substr ($File::Find::name,
+						      length $tree_base);
+			  my $dst_name = $dir . '/' . $sub_file_name;
+			  if (-d $File::Find::name) {
+			    $self->ensure_dir_exists ($dst_name);
+			  }
+			  elsif (-f $File::Find::name) {
+			    $self->install_file_copy ($File::Find::name,
+						      $dst_name);
+			  }
+			  else {
+			    die "Don't know what to do with $File::Find::name";
+			  }
+			}
+		      }, $tree_base);
+  }
 }
 
 sub wipe_dirs {
@@ -378,6 +401,10 @@ sub check_dir_spec {
     if (! -f $file_spec->{src_name}) {
       die "For role $role, file ". $file_spec->{src_name} ." not found";
     }
+  }
+
+  if (defined ($dir_spec->{tree}) && ! -d $dir_spec->{tree}{src_name}) {
+    die "For role $role, tree ". $dir_spec->{tree}{src_name} ." not found";
   }
 }
 
@@ -683,12 +710,12 @@ sub parse_dir {
   for my $flag (@flags) {
     my $eq_posn = index ($flag, '=');
     if ($eq_posn < 0) {
-      $self->syntax_error ("Bad directory flag '$flag'");
+      $self->syntax_error ($parse_state, "Bad directory flag '$flag'");
     }
     my $flag_name = substr ($flag, 0, $eq_posn);
     my $flag_val = substr ($flag, $eq_posn + 1);
     if ($flag_name ne 'owner' && $flag_name ne 'mode') {
-      $self->syntax_error ("Unknown directory flag '$flag_name'");
+      $self->syntax_error ($parse_state,"Unknown directory flag '$flag_name'");
     }
     $dir_spec->{$flag_name} = $flag_val;
   }
@@ -712,18 +739,35 @@ sub parse_dir {
 	 $dir_spec->{setup} = join (' ', @declargs);
        }
        elsif ($decl eq 'file') {
-	 if ($#declargs < 0 || $#declargs > 1) {
-	   $self->syntax_error ($parse_state);
+	 push @{$dir_spec->{files}},
+	   $self->parse_file_spec ($parse_state, $dir_name, @declargs);
+       }
+       elsif ($decl eq 'tree') {
+	 if (defined ($dir_spec->{tree})) {
+	   $self->syntax_error ($parse_state, "Second 'tree'");
 	 }
-	 my ($src, $dst) = @declargs;
-	 if (!defined ($dst)) { $dst = $src }
-	 $src = $self->{basename} . "/" . $src;
-	 $dst = $dir_name . "/" . $dst;
-	 push @{$dir_spec->{files}}, { src_name => $src, dst_name => $dst };
+	 $dir_spec->{tree} =
+	   $self->parse_file_spec ($parse_state, $dir_name, @declargs);
+       }
+       else {
+	 $self->syntax_error ($parse_state,
+			      "Unknown directory sub-declaration $decl");
        }
      });
 
   return $dir_spec;
+}
+
+sub parse_file_spec {
+  my ($self, $parse_state, $dir_name, @declargs) = @_;
+  if ($#declargs < 0 || $#declargs > 1) {
+    $self->syntax_error ($parse_state);
+  }
+  my ($src, $dst) = @declargs;
+  if (!defined ($dst)) { $dst = $src }
+  $src = $self->{basename} . "/" . $src;
+  $dst = $dir_name . "/" . $dst;
+  return { src_name => $src, dst_name => $dst };
 }
 
 sub with_lines_of_group {
