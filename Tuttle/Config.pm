@@ -340,14 +340,7 @@ sub install_dir {
   my $pfx = $self->{install_prefix};
 
   $self->ensure_dir_exists ($dir);
-
-  if (defined ($dir_spec->{owner})) {
-    $self->do_chown ($dir, $dir_spec->{owner});
-  }
-
-  if (defined ($dir_spec->{mode})) {
-    $self->do_chmod ($dir, $dir_spec->{mode});
-  }
+  $self->owner_mode_fixups ($dir_spec, $dir);
 
   if (defined $dir_spec->{release}) {
     $self->run_command ($self->goldpull, $dir_spec->{release});
@@ -381,8 +374,22 @@ sub install_dir {
 			  else {
 			    die "Don't know what to do with $File::Find::name";
 			  }
+
+			  $self->owner_mode_fixups ($dir_spec, $dst_name);
 			}
 		      }, $tree_base);
+  }
+}
+
+sub owner_mode_fixups {
+  my ($self, $dir_spec, $file_name) = @_;
+
+  if (defined ($dir_spec->{owner})) {
+    $self->do_chown ($file_name, $dir_spec->{owner});
+  }
+
+  if (defined ($dir_spec->{mode})) {
+    $self->do_chmod ($file_name, $dir_spec->{mode});
   }
 }
 
