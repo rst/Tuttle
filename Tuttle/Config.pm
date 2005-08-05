@@ -87,6 +87,7 @@ sub new {
   $self->{keywords} = { id => $config_name };
   $self->{install_prefix} = $phony_root || '';
   $self->{fake_mode} = defined $phony_root;
+  $self->{config_search_path} = [ $self->{basename} ];
 
   $self->parse ($filename);
   return $self;
@@ -217,7 +218,7 @@ sub crontab_name {
 
 sub crontab_source_file {
   my ($self, $token) = @_;
-  return $self->{basename} . '/cron.' . $token;
+  return $self->locate_config_file ('cron.' . $token);
 }
 
 sub collect_crontabs {
@@ -292,7 +293,7 @@ sub service_file_command {
 
 sub service_source_file {
   my ($self, $token) = @_;
-  return $self->{basename} . '/service.' . $token;
+  return $self->locate_config_file ('service.' . $token);
 }
 
 sub install_service {
@@ -603,6 +604,15 @@ sub substitute_keywords {
   return $string;
 }
 
+sub locate_config_file {
+  my ($self, $name) = @_;
+  for my $dir (@{$self->{config_search_path}}) {
+    my $fname = $dir . '/'. $name;
+    return $fname if -e $fname;
+  }
+  die "Could not locate config file $name on search path"
+}
+
 ################################################################
 #
 # Config file sanity-checks
@@ -676,6 +686,10 @@ sub parse {
        }
        elsif ($fields[0] eq 'role' && $#fields == 1) {
 	 $self->parse_role ($fields[1], $parse_state);
+       }
+       elsif ($fields[0] eq 'config_files_from') {
+	 push @{$self->{config_search_path}},
+	   map { $self->{basename} . '/' . $_} @fields[1..$#fields];
        }
        else {
 	 $self->syntax_error ($parse_state);
@@ -772,7 +786,7 @@ sub parse_file_spec {
   }
   my ($src, $dst) = @declargs;
   if (!defined ($dst)) { $dst = $src }
-  $src = $self->{basename} . "/" . $src;
+  $src = $self->locate_config_file ($src);
   $dst = $dir_name . "/" . $dst;
   return { src_name => $src, dst_name => $dst };
 }
