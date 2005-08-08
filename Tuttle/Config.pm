@@ -242,10 +242,7 @@ sub remove_crontab {
 
 sub check_crontab_spec {
   my ($self, $role, $token) = @_;
-  my $file = $self->crontab_source_file ($token);
-  if (! -f $file) {
-    die "For role $role, crontab source file $file not found";
-  }
+  $self->check_file_keywords ($self->crontab_source_file ($token));
 }
 
 ################################################################
@@ -320,10 +317,7 @@ sub restart_service {
 
 sub check_service_spec {
   my ($self, $role, $token) = @_;
-  my $file = $self->service_source_file ($token);
-  if (! -f $file) {
-    die "For role $role, service file $file for service $token not found";
-  }
+  $self->check_file_keywords ($self->service_source_file ($token));
 }
 
 ################################################################
@@ -405,14 +399,23 @@ sub wipe_dirs {
 
 sub check_dir_spec {
   my ($self, $role, $dir_spec) = @_;
+
   for my $file_spec (@{$dir_spec->{files}}) {
-    if (! -f $file_spec->{src_name}) {
-      die "For role $role, file ". $file_spec->{src_name} ." not found";
-    }
+    $self->check_file_keywords ($file_spec->{src_name});
   }
 
-  if (defined ($dir_spec->{tree}) && ! -d $dir_spec->{tree}{src_name}) {
-    die "For role $role, tree ". $dir_spec->{tree}{src_name} ." not found";
+  if (defined ($dir_spec->{tree})) {
+    if (! -d $dir_spec->{tree}{src_name}) {
+      die "For role $role, tree ". $dir_spec->{tree}{src_name} ." not found";
+    }
+
+    File::Find::find ({ no_chdir => 1,
+			wanted => sub {
+			  if (-f $File::Find::name) {
+			    $self->check_file_keywords ($File::Find::name)
+			  }
+			}},
+		      $dir_spec->{tree}{src_name});
   }
 }
 
@@ -604,6 +607,20 @@ sub substitute_keywords {
   return $string;
 }
 
+sub check_file_keywords {
+  my ($self, $file) = @_;
+  open (IN, "<$file");
+  while (<IN>) {
+    while (/\$tuttle:([^\$]*)\$/) {
+      if (!defined ($self->{keywords}{$1})) {
+	die "In file $file, keyword $1 not defined"
+      }
+      s/\$tuttle:([^\$]*)\$//;
+    }
+  }
+  close (IN);
+}
+
 sub locate_config_file {
   my ($self, $name) = @_;
   for my $dir (@{$self->{config_search_path}}) {
@@ -616,8 +633,6 @@ sub locate_config_file {
 ################################################################
 #
 # Config file sanity-checks
-# XXX Should look through files to make sure all keywords
-#     have definitions supplied.
 
 sub check_roles {
   my ($self) = @_;

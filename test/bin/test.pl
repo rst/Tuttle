@@ -38,6 +38,14 @@ else {
   print "Wipe conflict detected -- $@ \n"
 }
 
+eval {
+  $c = Tuttle::Config->new ('badkeytest', "$base/badkeytest/Tuttle");
+};
+
+if (!$@) {
+  die "Undefined keyword not detected -- $@ \n"
+}
+
 # First test installation...
 
 $c = Tuttle::Config->new ('test0', "$base/tuttle/test0/Roles.conf", $sandbox);
