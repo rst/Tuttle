@@ -334,7 +334,10 @@ sub install_dir {
   my $dir = $dir_spec->{dir};
   my $pfx = $self->{install_prefix};
 
-  $self->ensure_dir_exists ($dir);
+  if (!$dir_spec->{is_really_file}) {
+    $self->ensure_dir_exists ($dir);
+  }
+
   $self->owner_mode_fixups ($dir_spec, $dir);
 
   if (defined $dir_spec->{release}) {
@@ -512,6 +515,10 @@ of the form
     [mode => "..."]
     [recursive => "..."]
   }
+
+Standalone "file" directives in a role result in a phony "dir" spec,
+with dir being the filename, $dir_spec->{is_really_file} being set to
+one, and there being one file entry (containing the obvious).
 
 =cut
 
@@ -733,6 +740,10 @@ sub parse_role {
 	   $self->parse_dir ($decl_args[1], $parse_state,
 			     @decl_args[2..$#decl_args]);
        }
+       elsif ($decl eq 'file') {
+	 push @{$self->{roles}{$role_name}{dirs}},
+	   $self->parse_standalone_file ($parse_state, @decl_args);
+       }
        else {
 	 $self->syntax_error ($parse_state);
        }
@@ -741,20 +752,7 @@ sub parse_role {
 
 sub parse_dir {
   my ($self, $dir_name, $parse_state, @flags) = @_;
-  my $dir_spec = { dir => $dir_name };
-
-  for my $flag (@flags) {
-    my $eq_posn = index ($flag, '=');
-    if ($eq_posn < 0) {
-      $self->syntax_error ($parse_state, "Bad directory flag '$flag'");
-    }
-    my $flag_name = substr ($flag, 0, $eq_posn);
-    my $flag_val = substr ($flag, $eq_posn + 1);
-    if ($flag_name ne 'owner' && $flag_name ne 'mode') {
-      $self->syntax_error ($parse_state,"Unknown directory flag '$flag_name'");
-    }
-    $dir_spec->{$flag_name} = $flag_val;
-  }
+  my $dir_spec = $self->parse_dir_flags ($parse_state, $dir_name, @flags);
 
   $self->with_lines_of_group
     ($parse_state, sub {
@@ -790,6 +788,45 @@ sub parse_dir {
 			      "Unknown directory sub-declaration $decl");
        }
      });
+
+  return $dir_spec;
+}
+
+sub parse_standalone_file {
+  my ($self, $parse_state, @decl_args) = @_;
+  if ($#decl_args < 1) {
+    $self->syntax_error ($parse_state,
+			 "Standalone 'file' directive must have dest");
+  }
+  if (substr ($decl_args[1], 0, 1) ne '/') {
+    $self->syntax_error ($parse_state,
+			 "Standalone 'file' directive requires ".
+			 "absolute path for dest");
+  }
+  my ($src, $dst, @flags) = @decl_args;
+  my $dir_spec = $self->parse_dir_flags ($parse_state, $dst, @flags);
+  $src = $self->locate_config_file ($src);
+  $dir_spec->{files} = [{ src_name => $src, dst_name => $dst }];
+  $dir_spec->{is_really_file} = 1;
+  return $dir_spec;
+}
+
+sub parse_dir_flags {
+  my ($self, $parse_state, $dir_name, @flags) = @_;
+  my $dir_spec = { dir => $dir_name };
+
+  for my $flag (@flags) {
+    my $eq_posn = index ($flag, '=');
+    if ($eq_posn < 0) {
+      $self->syntax_error ($parse_state, "Bad directory flag '$flag'");
+    }
+    my $flag_name = substr ($flag, 0, $eq_posn);
+    my $flag_val = substr ($flag, $eq_posn + 1);
+    if ($flag_name ne 'owner' && $flag_name ne 'mode') {
+      $self->syntax_error ($parse_state,"Unknown directory flag '$flag_name'");
+    }
+    $dir_spec->{$flag_name} = $flag_val;
+  }
 
   return $dir_spec;
 }
