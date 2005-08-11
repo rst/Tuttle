@@ -610,8 +610,16 @@ sub run_command {
 
 sub substitute_keywords {
   my ($self, $string) = @_;
-  $string =~ s/\$tuttle:([^\$]*)\$/$self->{keywords}{$1}/eg;
+  $string =~ s/\$tuttle:([^\$]*)\$/$self->keyword_value($1)/eg;
   return $string;
+}
+
+sub keyword_value {
+  my ($self, $keyword) = @_;
+  if (!defined $self->{keywords}{$keyword}) {
+    die "Undefined keyword $keyword";
+  }
+  return $self->{keywords}{$keyword};
 }
 
 sub check_file_keywords {

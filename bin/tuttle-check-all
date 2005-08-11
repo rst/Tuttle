@@ -8,10 +8,21 @@ use strict;
 
 chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
 
+my $errs_found = 0;
+
 for my $dir (<*>) {
   my $file = "$dir/Roles.conf";
   if (-f $file) {
-      # Just parse the config files, which does a lot of sanity checks...
+    # Just parse the config files, which does a lot of sanity checks...
+    eval {
       Tuttle::Config->new ($dir, $file);
+    };
+    if ($@) {
+      ++$errs_found;
+      print "Error in config $dir:\n  ", $@, "\n";
+    }
   }
 }
+
+exit ($errs_found ? 1 : 0);
+
