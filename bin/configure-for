@@ -1,0 +1,21 @@
+#! /usr/bin/perl -w
+
+use FindBin;
+use File::Spec;
+use lib "${FindBin::Bin}/..";
+use Tuttle::Config;
+use strict;
+
+chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
+
+my @dirs = @ARGV;
+
+for my $dir (@dirs) {
+  if (! -f "$dir/Roles.conf") {
+    die "Configuration $dir not known"
+  }
+}
+
+for my $dir (@dirs) {
+  Tuttle::Config->new ($dir, "$dir/Roles.conf")->install;
+}
