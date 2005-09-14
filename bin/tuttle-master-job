@@ -11,6 +11,11 @@ chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
 for my $dir (<*>) {
   my $file = "$dir/Roles.conf";
   if (-f $file) {
-    Tuttle::Config->new ($dir, $file)->install;
+    eval {
+      Tuttle::Config->new ($dir, $file)->install;
+    };
+    if ($@) {
+      print STDERR "Error evaluting configuration $dir:\n", $@, "\n";
+    }
   }
 }
