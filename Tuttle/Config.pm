@@ -250,25 +250,17 @@ sub check_crontab_spec {
 # Service handling...
 # Really die on chkconfig failures?  What else to do?
 
-sub chkconfig {
-  my ($self) = @_;
-  return $self->{install_prefix} . '/sbin/chkconfig';
-}
-
 sub collect_services {
   my ($self) = @_;
-  my $chkconfig = $self->chkconfig;
-  open (CONF, "$chkconfig |");
+  opendir (DIR, $self->{install_prefix} . $self->service_file_dir);
   my @services;
   my $pfx = $self->{config_name} . '.';
-  while (<CONF>) {
-    chomp;
-    my ($service) = split;
+  for my $service (readdir DIR) {
     if ($pfx eq substr ($service, 0, length $pfx)) {
       push @services, substr ($service, length $pfx);
     }
   }
-  close CONF;
+  closedir DIR;
   return { map { $_ => 1 } @services };
 }
 
@@ -279,7 +271,7 @@ sub service_name {
 
 sub service_file_location {
   my ($self, $token) = @_;
-  return "/etc/rc.d/init.d/" . $self->service_name($token);
+  return $self->service_file_dir . '/' . $self->service_name($token);
 }
 
 sub service_file_command {
@@ -299,14 +291,14 @@ sub install_service {
   $self->install_file_copy ($self->service_source_file ($token),
 			    $self->service_file_location ($token),
 			    sub { chmod 0755, $_[0] } );
-  $self->run_command ($self->chkconfig, $self->service_name ($token), "on");
+  $self->create_service_links ($self->service_name ($token));
 }
 
 sub remove_service {
   my ($self, $token) = @_;
   print "Remove service $token\n";
   $self->run_command ($self->service_file_command ($token), "stop");
-  $self->run_command ($self->chkconfig, $self->service_name ($token), "off");
+  $self->remove_service_links ($self->service_name ($token));
   $self->remove_file ($self->service_file_location ($token));
 }
 
@@ -576,18 +568,9 @@ sub dirs_of_role {
 
 ################################################################
 #
-# Internal utility routines
-
-sub items_of_host {
-  my ($self, $host, $item_type, $wantarray) = @_;
-  my @items;
-  for my $role ($self->roles_of_host ($host)) {
-    if (exists $self->{roles}{$role}{$item_type}) {
-      push @items, @{$self->{roles}{$role}{$item_type}};
-    }
-  }
-  return $wantarray? @items: \@items;
-}
+# Dealing with the grotty details of interfacing to the rest
+# of the system.  Also deals with the differences between running
+# live and running in the "no root required" test harness.
 
 sub install_file_copy {
   my ($self, $src, $dest, $handler) = @_;
@@ -653,6 +636,69 @@ sub run_command {
   return 1 if $status == 0;
   print STDERR "Command $str failed -- status $status\n";
   return 0;
+}
+
+# Services require particularly special treatment...
+
+sub service_file_dir {
+  my ($self) = @_;
+  for my $candidate (qw(/etc/rc.d/init.d /etc/init.d /etc/rc.d)) {
+    if (-d $self->{install_prefix} . $candidate) {
+      return $candidate;
+    }
+  }
+
+  die "Could not find service (init.d file) directory!"
+}
+
+sub chkconfig {
+  my ($self) = @_;
+  return $self->{install_prefix} . '/sbin/chkconfig';
+}
+
+sub create_service_links {
+  my ($self, $service_name) = @_;
+  my $chkconfig  = $self->{install_prefix} . '/sbin/chkconfig';
+  my $rcd_update = $self->{install_prefix} . '/usr/sbin/update-rc.d';
+  if (-x $chkconfig) {
+    $self->run_command ($chkconfig, $service_name, "on");
+  }
+  elsif (-x $rcd_update) {
+    $self->run_command ($rcd_update, $service_name, "defaults");
+  }
+  else {
+    print STDERR "Unable to create links for $service_name; could not find service link editor\n";
+  }
+}
+
+sub remove_service_links {
+  my ($self, $service_name) = @_;
+  my $chkconfig  = $self->{install_prefix} . '/sbin/chkconfig';
+  my $rcd_update = $self->{install_prefix} . '/usr/sbin/update-rc.d';
+  if (-x $chkconfig) {
+    $self->run_command ($chkconfig, $service_name, "off");
+  }
+  elsif (-x $rcd_update) {
+    $self->run_command ($rcd_update, "-f", $service_name, "remove");
+  }
+  else {
+    print STDERR "Unable to remove links for $service_name; could not find service link editor\n";
+  }
+}
+
+################################################################
+#
+# Other useful utilities.
+
+sub items_of_host {
+  my ($self, $host, $item_type, $wantarray) = @_;
+  my @items;
+  for my $role ($self->roles_of_host ($host)) {
+    if (exists $self->{roles}{$role}{$item_type}) {
+      push @items, @{$self->{roles}{$role}{$item_type}};
+    }
+  }
+  return $wantarray? @items: \@items;
 }
 
 sub substitute_keywords {
