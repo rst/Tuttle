@@ -422,6 +422,18 @@ sub check_dir_spec {
   }
 }
 
+=head2 $config->roles
+
+Return names of all roles in this configuration
+
+=cut
+
+sub roles {
+  my ($self) = @_;
+  my @roles = keys %{$self->{roles}};
+  return wantarray ? @roles : \@roles;
+}
+
 =head2 $config->roles_of_host ($hostname)
 
 Returns names of all roles declared for host $hostname, either
@@ -472,6 +484,17 @@ sub crontabs_of_host {
   return $self->items_of_host ($host, 'crontabs', wantarray);
 }
 
+=head2 $config->crontabs_of_role ($rolename)
+
+Similar, except returns crontabs associated with the given role.
+
+=cut
+
+sub crontabs_of_role {
+  my ($self, $role) = @_;
+  return $self->{roles}{$role}{crontabs};
+}
+
 =head2 $config->services_of_host ($hostname)
 
 Returns names of all services relevant to host $hostname, in
@@ -491,6 +514,17 @@ sub services_of_host {
   return $self->items_of_host ($host, 'services', wantarray);
 }
 
+=head2 $config->services_of_role ($rolename)
+
+Similar, except returns services associated with the given role.
+
+=cut
+
+sub services_of_role {
+  my ($self, $role) = @_;
+  return $self->{roles}{$role}{services};
+}
+
 =head2 $config->dirs_of_host
 
 A Tuttle configuration can specify directories which are to
@@ -508,12 +542,14 @@ This returns a list (array or arrayref as appropriate) of objects
 of the form
 
   { dir => $name,
-    release => $tag,
+    reference_name => $tag,
+    release => $release_tag,
     files => [ { src_name => $name, dst_name => $name }, ... ],
     setup => "make ... ",
-    [owner => "..."]
-    [mode => "..."]
-    [recursive => "..."]
+    [owner => "...",]
+    [mode => "...",]
+    [recursive => "...",]
+    [tree => "..."]
   }
 
 Standalone "file" directives in a role result in a phony "dir" spec,
@@ -525,6 +561,17 @@ one, and there being one file entry (containing the obvious).
 sub dirs_of_host {
   my ($self, $host) = @_;
   return $self->items_of_host ($host, 'dirs', wantarray);
+}
+
+=head2 $config->dirs_of_role ($rolename)
+
+Similar, except returns dirs associated with the given role.
+
+=cut
+
+sub dirs_of_role {
+  my ($self, $role) = @_;
+  return $self->{roles}{$role}{dirs};
 }
 
 ################################################################
@@ -764,7 +811,7 @@ sub parse_role {
        } elsif ($decl eq 'dir') {
 	 $self->{keywords}{$decl_args[0]} = $decl_args[1];
 	 push @{$self->{roles}{$role_name}{dirs}},
-	   $self->parse_dir ($decl_args[1], $parse_state,
+	   $self->parse_dir ($decl_args[0], $decl_args[1], $parse_state,
 			     @decl_args[2..$#decl_args]);
        }
        elsif ($decl eq 'file') {
@@ -778,8 +825,10 @@ sub parse_role {
 }
 
 sub parse_dir {
-  my ($self, $dir_name, $parse_state, @flags) = @_;
+  my ($self, $dir_tag, $dir_name, $parse_state, @flags) = @_;
   my $dir_spec = $self->parse_dir_flags ($parse_state, $dir_name, @flags);
+
+  $dir_spec->{reference_name} = $dir_tag;
 
   $self->with_lines_of_group
     ($parse_state, sub {
