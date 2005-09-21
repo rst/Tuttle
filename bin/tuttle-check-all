@@ -4,7 +4,11 @@ use FindBin;
 use File::Spec;
 use lib "${FindBin::Bin}/..";
 use Tuttle::Config;
+use Getopt::Std;
 use strict;
+
+my %options;
+getopts ('v', \%options);
 
 chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
 
@@ -20,6 +24,9 @@ for my $dir (<*>) {
     if ($@) {
       ++$errs_found;
       print "Error in config $dir:\n  ", $@, "\n";
+    }
+    elsif ($options{v}) {
+      print "Config $dir OK\n"
     }
   }
 }
