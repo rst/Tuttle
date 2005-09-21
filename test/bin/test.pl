@@ -46,6 +46,17 @@ if (!$@) {
   die "Undefined keyword not detected -- $@ \n"
 }
 
+$c = Tuttle::Config->new ('hosts_of_role', 
+			  "$base/hosts_of_role_test/Roles.conf");
+
+if ($c->keyword_value ('hosts:d') ne 'a1 a2 b1 b2 d1 d2'
+    || $c->keyword_value ('hosts:c') ne 'c1 c2'
+    || $c->keyword_value ('hosts:b') ne 'a1 a2 b1 b2'
+    || $c->keyword_value ('hosts:a') ne 'a1 a2')
+{
+  die "Can't compute roles of host"
+}
+
 # First test installation...
 
 $c = Tuttle::Config->new ('test0', "$base/tuttle/test0/Roles.conf", $sandbox);

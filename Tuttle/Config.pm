@@ -458,6 +458,50 @@ sub accum_role {
   }
 }
 
+=head2 $config->hosts_of_role ($role)
+
+Returns a list of all hosts with role $role, as an array or arrayref
+as appropriate.  Includes hosts declared to have the role.  Also includes
+hosts declared to have some other role with $role declared as a subrole,
+directly or indirectly.
+
+=cut
+
+sub hosts_of_role {
+  my ($self, $role) = @_;
+  my %hosts;
+  for my $role ($self->roles_having_subrole ($role)) {
+    for my $host (@{$self->{roles}{$role}{hosts}}) {
+      $hosts{$host} = 1;
+    }
+  }
+  my @hosts = sort { $a cmp $b } keys %hosts;
+  return wantarray ? @hosts : \@hosts;
+}
+
+sub roles_having_subrole {
+  my ($self, $role) = @_;
+  my @all_roles = keys %{$self->{roles}};
+  my @wanted_roles = grep { $self->has_as_subrole ($_, $role) } @all_roles;
+  return wantarray ? @wanted_roles : \@wanted_roles;
+}
+
+sub has_as_subrole {
+  my ($self, $role, $possible_subrole) = @_;
+  return 1 if ($role eq $possible_subrole);
+
+  return 0 if !defined ($self->{roles}{$role}{sub_roles});
+
+  my @subs = @{$self->{roles}{$role}{sub_roles}};
+  return 1 if grep { $_ eq $possible_subrole } @subs;
+
+  for my $known_subrole (@subs) {
+    return 1 if $self->has_as_subrole ($known_subrole, $possible_subrole);
+  }
+
+  return 0;
+}
+
 =head2 $config->crontabs_of_host ($hostname)
 
 Returns names of all crontabs relevant to host $hostname, in
@@ -709,7 +753,12 @@ sub substitute_keywords {
 
 sub keyword_value {
   my ($self, $keyword) = @_;
-  if (!defined $self->{keywords}{$keyword}) {
+  if ($keyword =~ /hosts:(.*)$/) {
+    my $foo = join (' ', $self->hosts_of_role ($1));
+    print "Hosts of $1: $foo\n";
+    return $foo
+  }
+  elsif (!defined $self->{keywords}{$keyword}) {
     die "Undefined keyword $keyword";
   }
   return $self->{keywords}{$keyword};
