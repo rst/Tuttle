@@ -87,7 +87,7 @@ sub new {
   $self->{keywords} = { id => $config_name };
   $self->{install_prefix} = $phony_root || '';
   $self->{fake_mode} = defined $phony_root;
-  $self->{config_search_path} = [ $self->{basename} ];
+  $self->{config_search_path} = undef;
 
   $self->parse ($filename);
   return $self;
@@ -638,10 +638,20 @@ sub check_file_keywords {
 
 sub locate_config_file {
   my ($self, $name) = @_;
-  for my $dir (@{$self->{config_search_path}}) {
+
+  my @path;
+  if (defined ($self->{config_search_path})) {
+    @path = @{$self->{config_search_path}}
+  }
+  else {
+    push @path, $self->{basename};
+  }
+
+  for my $dir (@path) {
     my $fname = $dir . '/'. $name;
     return $fname if -e $fname;
   }
+
   die "Could not locate config file $name on search path"
 }
 
@@ -717,7 +727,16 @@ sub parse {
        elsif ($fields[0] eq 'role' && $#fields == 1) {
 	 $self->parse_role ($fields[1], $parse_state);
        }
-       elsif ($fields[0] eq 'config_files_from') {
+       elsif ($fields[0] eq 'config_search_path'
+	      || $fields[0] eq 'config_files_from') 
+       {
+
+	 if ($fields[0] eq 'config_files_from' &&
+	     !defined ($self->{config_search_path}))
+	 {
+	   $self->{config_search_path} = [ $self->{basename} ];
+	 }
+
 	 push @{$self->{config_search_path}},
 	   map { $self->{basename} . '/' . $_} @fields[1..$#fields];
        }
