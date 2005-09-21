@@ -52,7 +52,8 @@ $c = Tuttle::Config->new ('hosts_of_role',
 if ($c->keyword_value ('hosts:d') ne 'a1 a2 b1 b2 d1 d2'
     || $c->keyword_value ('hosts:c') ne 'c1 c2'
     || $c->keyword_value ('hosts:b') ne 'a1 a2 b1 b2'
-    || $c->keyword_value ('hosts:a') ne 'a1 a2')
+    || $c->keyword_value ('hosts:a') ne 'a1 a2'
+    || $c->substitute_keywords ('$tuttle:hosts:d$') ne 'a1 a2 b1 b2 d1 d2')
 {
   die "Can't compute roles of host"
 }

@@ -755,7 +755,6 @@ sub keyword_value {
   my ($self, $keyword) = @_;
   if ($keyword =~ /hosts:(.*)$/) {
     my $foo = join (' ', $self->hosts_of_role ($1));
-    print "Hosts of $1: $foo\n";
     return $foo
   }
   elsif (!defined $self->{keywords}{$keyword}) {
@@ -769,8 +768,10 @@ sub check_file_keywords {
   open (IN, "<$file");
   while (<IN>) {
     while (/\$tuttle:([^\$]*)\$/) {
-      if (!defined ($self->{keywords}{$1})) {
-	die "In file $file, keyword $1 not defined"
+      my ($keyword) = $1;
+      eval { $self->keyword_value ($keyword) };
+      if ($@) {
+	die "In file $file, keyword $keyword not defined"
       }
       s/\$tuttle:([^\$]*)\$//;
     }
