@@ -340,10 +340,11 @@ sub install_dir {
     $self->run_command ("/usr/bin/rsync", "--checksum", "--delete", "-a",
 			$pfx . "/gold/" . $dir_spec->{release} . '/',
 			$pfx . $dir);
+  }
 
-    if ($dir_spec->{setup}) {
-      $self->run_command ("/bin/sh", "-c", "cd $pfx$dir;".$dir_spec->{setup});
-    }
+
+  if ($dir_spec->{setup}) {
+    $self->run_command ("/bin/sh", "-c", "cd $pfx$dir;".$dir_spec->{setup});
   }
 
   for my $file_spec (@{$dir_spec->{files}}) {
