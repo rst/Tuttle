@@ -88,6 +88,7 @@ sub new {
   $self->{install_prefix} = $phony_root || '';
   $self->{fake_mode} = defined $phony_root;
   $self->{config_search_path} = undef;
+  $self->{install_record} = undef;
 
   $self->parse ($filename);
   return $self;
@@ -133,6 +134,8 @@ sub install {
 
   # To work.  First, set up directories,
   # cron jobs, and services associated with each role.
+
+  $self->{install_record} = {};
 
   my $roles = $self->roles_of_host ($hostname);
 
@@ -659,18 +662,16 @@ sub wipe_directory {
 
 sub do_chown {
   my ($self, $dir, $owner) = @_;
-  if ($self->{install_prefix}) {
-    print "Chown $dir to $owner\n";
-  }
-  else {
+  if (!defined ($self->{install_prefix})) {
     $self->run_command ('/bin/chown', $owner, $dir);
   }
+  $self->{install_record}{chown}{$dir} = $owner;
 }
 
 sub do_chmod {
   my ($self, $dir, $mode) = @_;
-  print "Chmod $dir to $mode\n";
   chmod oct($mode), $self->{install_prefix}.$dir;
+  $self->{install_record}{chmod}{$dir} = $mode;
 }
 
 sub run_command {

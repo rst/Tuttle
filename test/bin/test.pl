@@ -67,6 +67,40 @@ $c->install ('whitney');
 print "Reinstall as pratt\n";
 $c->install ('pratt');
 &install_test ('sandbox.pratt');
+
+my $chowns = $c->{install_record}{chown};
+my $chmods = $c->{install_record}{chmod};
+
+my $expect_chowns =
+{
+ '/etc/floppit' => 'kermit_frog',
+ '/var/spool/slae-config/test0' => 'advisor',
+ '/var/log/slae/test0' => 'advisor',
+ '/var/spool/slae-config/test0/slae_pieces.conf' => 'slae_owner'
+};
+
+my $expect_chmods =
+{
+ '/etc/rc.d/init.d/test0.web' => '0755',
+ '/etc/floppit' => '467',
+ '/etc/rc.d/init.d/test0.slae' => '0755',
+ '/var/spool/slae-config/test0' => '0741',
+ '/var/log/slae/test0' => '0714',
+ '/var/spool/slae-config/test0/slae_pieces.conf' => '0673'
+};
+
+for my $k (keys %$expect_chowns) {
+  if ($expect_chowns->{$k} ne $c->{install_record}{chown}{$k}) {
+    die "Didn't chown $k to $expect_chowns->{$k}";
+  }
+}
+
+for my $k (keys %$expect_chmods) {
+  if ($expect_chmods->{$k} ne $c->{install_record}{chmod}{$k}) {
+    die "Didn't chmod $k to $expect_chmods->{$k}";
+  }
+}
+
 print "Wipe\n";
 $c->install ('wiper');
 &install_test ('sandbox0');
