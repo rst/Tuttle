@@ -662,7 +662,7 @@ sub wipe_directory {
 
 sub do_chown {
   my ($self, $dir, $owner) = @_;
-  if (!defined ($self->{install_prefix})) {
+  if ($self->{install_prefix} eq '') {
     $self->run_command ('/bin/chown', $owner, $dir);
   }
   $self->{install_record}{chown}{$dir} = $owner;
