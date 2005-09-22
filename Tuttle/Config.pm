@@ -290,7 +290,7 @@ sub install_service {
   print "Install service $token\n";
   $self->install_file_copy ($self->service_source_file ($token),
 			    $self->service_file_location ($token),
-			    sub { chmod 0755, $_[0] } );
+			    mode => '0755');
   $self->create_service_links ($self->service_name ($token));
 }
 
@@ -344,7 +344,8 @@ sub install_dir {
   }
 
   for my $file_spec (@{$dir_spec->{files}}) {
-    $self->install_file_copy ($file_spec->{src_name}, $file_spec->{dst_name});
+    $self->install_file_copy ($file_spec->{src_name}, $file_spec->{dst_name},
+			      %{$file_spec->{options}});
   }
 
   if (defined ($dir_spec->{tree})) {
@@ -358,8 +359,8 @@ sub install_dir {
 			    $self->ensure_dir_exists ($dst_name);
 			  }
 			  elsif (-f $File::Find::name) {
-			    $self->install_file_copy ($File::Find::name,
-						      $dst_name);
+			    $self->install_file_copy
+			      ($File::Find::name, $dst_name);
 			  }
 			  else {
 			    die "Don't know what to do with $File::Find::name";
@@ -617,9 +618,9 @@ sub dirs_of_role {
 # live and running in the "no root required" test harness.
 
 sub install_file_copy {
-  my ($self, $src, $dest, $handler) = @_;
+  my ($self, $src, $declared_dest, %flags) = @_;
 
-  $dest = $self->{install_prefix} . $dest;
+  my $dest = $self->{install_prefix} . $declared_dest;
 
   open (IN, "<$src") or die "Couldn't open $src";
   open (OUT, ">$dest") or die "Couldn't open $dest";
@@ -634,7 +635,8 @@ sub install_file_copy {
   close IN;
   close OUT or die "Couldn't write $dest";
 
-  if (defined ($handler)) { &$handler ($dest); }
+  $self->do_chown ($declared_dest, $flags{owner}) if (defined ($flags{owner}));
+  $self->do_chmod ($declared_dest, $flags{mode})  if (defined ($flags{mode}));
 }
 
 sub remove_file {
@@ -922,8 +924,9 @@ sub parse_role {
 
 sub parse_dir {
   my ($self, $dir_tag, $dir_name, $parse_state, @flags) = @_;
-  my $dir_spec = $self->parse_dir_flags ($parse_state, $dir_name, @flags);
+  my $dir_spec = $self->parse_filesys_options ($parse_state, @flags);
 
+  $dir_spec->{dir} = $dir_name;
   $dir_spec->{reference_name} = $dir_tag;
 
   $self->with_lines_of_group
@@ -976,43 +979,49 @@ sub parse_standalone_file {
 			 "absolute path for dest");
   }
   my ($src, $dst, @flags) = @decl_args;
-  my $dir_spec = $self->parse_dir_flags ($parse_state, $dst, @flags);
+  my $dir_spec = { dir => $dst };
   $src = $self->locate_config_file ($src);
-  $dir_spec->{files} = [{ src_name => $src, dst_name => $dst }];
+  $dir_spec->{files} = [{ src_name => $src, dst_name => $dst,
+			  options =>
+			    $self->parse_filesys_options ($parse_state, @flags)
+			}];
   $dir_spec->{is_really_file} = 1;
   return $dir_spec;
 }
 
-sub parse_dir_flags {
-  my ($self, $parse_state, $dir_name, @flags) = @_;
-  my $dir_spec = { dir => $dir_name };
+sub parse_filesys_options {
+  my ($self, $parse_state, @flags) = @_;
+
+  my $options = {};
 
   for my $flag (@flags) {
     my $eq_posn = index ($flag, '=');
     if ($eq_posn < 0) {
-      $self->syntax_error ($parse_state, "Bad directory flag '$flag'");
+      $self->syntax_error ($parse_state, "Bad option '$flag'");
     }
     my $flag_name = substr ($flag, 0, $eq_posn);
     my $flag_val = substr ($flag, $eq_posn + 1);
     if ($flag_name ne 'owner' && $flag_name ne 'mode') {
-      $self->syntax_error ($parse_state,"Unknown directory flag '$flag_name'");
+      $self->syntax_error ($parse_state,"Unknown option '$flag_name'");
     }
-    $dir_spec->{$flag_name} = $flag_val;
+    $options->{$flag_name} = $flag_val;
   }
 
-  return $dir_spec;
+  return $options;
 }
 
 sub parse_file_spec {
   my ($self, $parse_state, $dir_name, @declargs) = @_;
-  if ($#declargs < 0 || $#declargs > 1) {
+  if ($#declargs < 0) {
     $self->syntax_error ($parse_state);
   }
-  my ($src, $dst) = @declargs;
+  my ($src, $dst, @flags) = @declargs;
   if (!defined ($dst)) { $dst = $src }
   $src = $self->locate_config_file ($src);
   $dst = $dir_name . "/" . $dst;
-  return { src_name => $src, dst_name => $dst };
+  return { src_name => $src, dst_name => $dst,
+	   options => $self->parse_filesys_options ($parse_state, @flags)
+	 };
 }
 
 sub with_lines_of_group {
