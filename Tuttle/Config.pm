@@ -338,6 +338,7 @@ sub install_dir {
   if (defined $dir_spec->{release}) {
     $self->run_command ($self->goldpull, $dir_spec->{release});
     $self->run_command ("/usr/bin/rsync", "--checksum", "--delete", "-a",
+			@{$dir_spec->{release_rsync_flags}},
 			$pfx . "/gold/" . $dir_spec->{release} . '/',
 			$pfx . $dir);
   }
@@ -935,13 +936,12 @@ sub parse_dir {
     ($parse_state, sub {
        my ($decl, @declargs) = @_;
        if ($decl eq 'release') {
-	 if ($#declargs != 0) {
-	   $self->syntax_error ($parse_state)
-	 }
-	 elsif (defined $dir_spec->{release}) {
+	 my ($release, @rsync_flags) = @declargs;
+	 if (defined $dir_spec->{release}) {
 	   $self->syntax_error ($parse_state, "Second 'release'");
 	 }
-	 $dir_spec->{release} = $declargs[0];
+	 $dir_spec->{release} = $release;
+	 $dir_spec->{release_rsync_flags} = \@rsync_flags;
        }
        elsif ($decl eq 'setup') {
 	 if (defined $dir_spec->{setup}) {
