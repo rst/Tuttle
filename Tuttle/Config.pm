@@ -1,5 +1,7 @@
 #! /usr/bin/perl -w
 
+# Written 2005 by Robert S. Thau
+
 package Tuttle::Config;
 
 require Exporter;
@@ -90,29 +92,49 @@ sub new {
   $self->{config_search_path} = undef;
   $self->{install_record} = undef;
 
+  # Reasons we can't use this config, even if we could parse it...
+
+  $self->{config_spec_errors} = [];
+
   $self->parse ($filename);
   return $self;
 }
 
-=head2 $config->install ([$hostname])
+=head2 $config->install ($hostname, $hostname, ...)
 
-Install the configuration for host $hostname (default `hostname`).
+Install the configuration for hosts with any of the names $hostnames.
+The defaults for this are the output of `hostname -s`, `hostname -f`,
+and `hostname -a`; this allows the host to be referred to by any of
+its names in a Roles.conf file.
+
 Installs all appropriate crontabs and services.  Freshens listed
 directories and files.  If any directory or file associated with
 a role has been freshened, it will also restart associated services.
 
 (You can supply a hostname other than the machine's own; however, the
-main reason for doing so is for the Tuttle test suite.
+main reason for doing so is for the Tuttle test suite).
 
 =cut
 
 sub install {
-  my ($self, $hostname) = @_;
+  my ($self, @hostnames) = @_;
 
-  if (!defined ($hostname)) {
-    $hostname = `hostname`;
-    chomp $hostname;
+  if ($#hostnames < 0) {
+    @hostnames = (`hostname -s`, `hostname -f`, `hostname -a`);
+    map { chomp } @hostnames;
   }
+
+  # Check validity of all roles, before we do anything.
+  # If there are problems, we don't want to break down halfway.
+
+  my $roles = $self->roles_of_hosts (\@hostnames);
+
+  for my $role (@$roles) {
+    $self->check_role ($role);
+  }
+
+  # To work.  First, set up directories,
+  # cron jobs, and services associated with each role.
 
   my $install_status =
     {
@@ -132,12 +154,7 @@ sub install {
 
     };
 
-  # To work.  First, set up directories,
-  # cron jobs, and services associated with each role.
-
   $self->{install_record} = {};
-
-  my $roles = $self->roles_of_host ($hostname);
 
   for my $role (@$roles) {
     $self->install_role ($role, $install_status);
@@ -357,6 +374,8 @@ sub install_dir {
     my $tree_base = $dir_spec->{tree}{src_name};
     File::Find::find ({ no_chdir => 1,
 			wanted => sub {
+			  return if $File::Find::name =~ m|/CVS(/.*)?$|;
+
 			  my $sub_file_name = substr ($File::Find::name,
 						      length $tree_base);
 			  my $dst_name = $dir . '/' . $sub_file_name;
@@ -432,22 +451,28 @@ sub roles {
   return wantarray ? @roles : \@roles;
 }
 
-=head2 $config->roles_of_host ($hostname)
+=head2 $config->roles_of_hosts (\@hostnames)
 
-Returns names of all roles declared for host $hostname, either
-directly, or as sub-roles of its directly declared roles.
-Return value will be either an array or arrayref, depending
-on context in the usual manner.
+Returns names of all roles declared for any of the hosts named in
+@hostnames, either directly, or as sub-roles of its directly declared
+roles.  If there are multiple names, these will typically be alternate
+names for the same host (e.g., both its short and full hostnames, so
+that we can name it either way in Roles.conf).
+
+Return value will be either an array or arrayref, depending on
+context in the usual manner.
 
 =cut
 
-sub roles_of_host {
-  my ($self, $host) = @_;
+sub roles_of_hosts {
+  my ($self, $hosts) = @_;
   my @roles;
 
   for my $role (keys %{$self->{roles}}) {
-    if (grep { $host eq $_ } @{$self->{roles}{$role}{hosts}}) {
-      $self->accum_role ($role, \@roles);
+    for my $host (@$hosts) {
+      if (grep { $host eq $_ } @{$self->{roles}{$role}{hosts}}) {
+	$self->accum_role ($role, \@roles);
+      }
     }
   }
 
@@ -508,27 +533,16 @@ sub has_as_subrole {
   return 0;
 }
 
-=head2 $config->crontabs_of_host ($hostname)
-
-Returns names of all crontabs relevant to host $hostname, in
-any of its roles.  The general rule is that crontab 'foo_jobs'
-has its master copy in '/gold/$config_name/cron-foo_jobs', and
-is installed in '/etc/cron.d/cron-foo_jobs-$config_name',
-with $tuttle:foo$ keywords replaced by the value of keyword
-foo.  (Keyword 'id' is assigned the config_name; each 
-"dir foo /bar/zot" creates a keyword foo whose value is '/bar/zot',
-and "define key value" at top level does the obvious thing).
-
-=cut
-
-sub crontabs_of_host {
-  my ($self, $host) = @_;
-  return $self->items_of_host ($host, 'crontabs', wantarray);
-}
-
 =head2 $config->crontabs_of_role ($rolename)
 
-Similar, except returns crontabs associated with the given role.
+Returns names of all crontabs relevant to the role named $rolename.
+The general rule is that crontab 'foo_jobs' has its master copy in
+'/gold/$config_name/cron-foo_jobs', and is installed in
+'/etc/cron.d/cron-foo_jobs-$config_name', with $tuttle:foo$ keywords
+replaced by the value of keyword foo.  (Keyword 'id' is assigned the
+config_name; each "dir foo /bar/zot" creates a keyword foo whose value
+is '/bar/zot', and "define key value" at top level does the obvious
+thing).
 
 =cut
 
@@ -537,9 +551,9 @@ sub crontabs_of_role {
   return $self->{roles}{$role}{crontabs};
 }
 
-=head2 $config->services_of_host ($hostname)
+=head2 $config->services_of_role ($rolename)
 
-Returns names of all services relevant to host $hostname, in
+Returns names of all services relevant to role $rolename, in
 any of its roles.  A service, in concrete terms, is an "init"
 file which is to be installed in /etc/rc.d, and enabled at
 boot time.
@@ -551,23 +565,12 @@ by "chkconfig ... on".  Keyword substitution is done as for crontabs.
 
 =cut
 
-sub services_of_host {
-  my ($self, $host) = @_;
-  return $self->items_of_host ($host, 'services', wantarray);
-}
-
-=head2 $config->services_of_role ($rolename)
-
-Similar, except returns services associated with the given role.
-
-=cut
-
 sub services_of_role {
   my ($self, $role) = @_;
   return $self->{roles}{$role}{services};
 }
 
-=head2 $config->dirs_of_host
+=head2 $config->dirs_of_role ($rolename)
 
 A Tuttle configuration can specify directories which are to
 be managed as part of the configuration process.  The specification
@@ -597,17 +600,6 @@ of the form
 Standalone "file" directives in a role result in a phony "dir" spec,
 with dir being the filename, $dir_spec->{is_really_file} being set to
 one, and there being one file entry (containing the obvious).
-
-=cut
-
-sub dirs_of_host {
-  my ($self, $host) = @_;
-  return $self->items_of_host ($host, 'dirs', wantarray);
-}
-
-=head2 $config->dirs_of_role ($rolename)
-
-Similar, except returns dirs associated with the given role.
 
 =cut
 
@@ -739,17 +731,6 @@ sub remove_service_links {
 #
 # Other useful utilities.
 
-sub items_of_host {
-  my ($self, $host, $item_type, $wantarray) = @_;
-  my @items;
-  for my $role ($self->roles_of_host ($host)) {
-    if (exists $self->{roles}{$role}{$item_type}) {
-      push @items, @{$self->{roles}{$role}{$item_type}};
-    }
-  }
-  return $wantarray? @items: \@items;
-}
-
 sub substitute_keywords {
   my ($self, $string) = @_;
   $string =~ s/\$tuttle:([^\$]*)\$/$self->keyword_value($1)/eg;
@@ -770,7 +751,7 @@ sub keyword_value {
 
 sub check_file_keywords {
   my ($self, $file) = @_;
-  open (IN, "<$file");
+  open (IN, "<$file") or die "Could not open $file";
   while (<IN>) {
     while (/\$tuttle:([^\$]*)\$/) {
       my ($keyword) = $1;
@@ -800,32 +781,31 @@ sub locate_config_file {
     return $fname if -e $fname;
   }
 
-  die "Could not locate config file $name on search path"
+  push @{$self->{config_spec_errors}},
+    "Could not locate config file $name on search path";
+
+  return $name;
 }
 
 ################################################################
 #
 # Config file sanity-checks
 
-sub check_roles {
+sub check_full {
   my ($self) = @_;
-  for my $role (keys %{$self->{roles}}) {
-    $self->check_role ($role, []);
+  $self->check_parsetime;
+
+  if ($#{$self->{config_spec_errors}} >= 0) {
+    die join "\n", @{$self->{config_spec_errors}};
   }
 
-  if (defined ($self->{roles}{wipeout})) {
-    for my $host (@{$self->{roles}{wipeout}{hosts}}) {
-      my $host_roles = $self->roles_of_host ($host);
-      if ($#$host_roles > 0) {
-	die "Can't wipe host $host, which has other roles assigned";
-      }
-    }
+  for my $role (keys %{$self->{roles}}) {
+    $self->check_role ($role);
   }
 }
 
 sub check_role {
   my ($self, $role) = @_;
-  $self->check_role_loops ($role, []);
   my $role_spec = $self->{roles}{$role};
   for my $crontab (@{$role_spec->{crontabs}}) {
     $self->check_crontab_spec ($role, $crontab);
@@ -835,6 +815,22 @@ sub check_role {
   }
   for my $dir (@{$role_spec->{dirs}}) {
     $self->check_dir_spec ($role, $dir);
+  }
+}
+
+sub check_parsetime {
+  my ($self) = @_;
+  for my $role (keys %{$self->{roles}}) {
+    $self->check_role_loops ($role, []);
+  }
+
+  if (defined ($self->{roles}{wipeout})) {
+    for my $host (@{$self->{roles}{wipeout}{hosts}}) {
+      my $host_roles = $self->roles_of_hosts ([$host]);
+      if ($#$host_roles > 0) {
+	die "Can't wipe host $host, which has other roles assigned";
+      }
+    }
   }
 }
 
@@ -893,7 +889,7 @@ sub parse {
        }
      });
 
-  $self->check_roles;
+  $self->check_parsetime;
 }
 
 sub parse_role {

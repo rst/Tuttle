@@ -8,18 +8,54 @@ use Getopt::Std;
 use strict;
 
 my %options;
-getopts ('v', \%options);
+getopts ('hvn', \%options);
+
+if ($options{h}) {
+  print STDOUT <<EOF; exit
+
+Usage: tuttle-check-all [-v] [-n] [-h] [config config config...]
+
+This script does a consistency check on the named Tuttle
+configurations (or on all Tuttle configurations that exist, if none
+are explicitly named).
+
+If there are any errors, they are described on STDOUT, and the script
+exits with an error status.
+
+Options:
+
+  -v Also note on STDOUT which configurations had no problems.
+  -n Don't check files referred to by Roles.conf, just Roles.conf itself.
+  -h Check nothing; just print this message.
+
+EOF
+}
 
 chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
 
 my $errs_found = 0;
 
-for my $dir (<*>) {
+my @configs = @ARGV;
+if ($#configs < 0) {
+  @configs = <*>
+}
+else {
+  for my $dir (@configs) {
+    if (! -f "$dir/Roles.conf") {
+      print "Config $dir not found\n";
+      ++$errs_found;
+    }
+  }
+}
+
+for my $dir (@configs) {
   my $file = "$dir/Roles.conf";
   if (-f $file) {
-    # Just parse the config files, which does a lot of sanity checks...
+    # If -n argument is supplied, run only internal consistency checks.
+    # Otherwise, check that files referred to by Roles.conf exist as well.
     eval {
-      Tuttle::Config->new ($dir, $file);
+      my $config = Tuttle::Config->new ($dir, $file);
+      if (!$options{n}) { $config->check_full };
     };
     if ($@) {
       ++$errs_found;

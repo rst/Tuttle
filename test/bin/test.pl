@@ -42,8 +42,26 @@ eval {
   $c = Tuttle::Config->new ('badkeytest', "$base/badkeytest/Tuttle");
 };
 
+if ($@) {
+  die "Nonexistent crontab kills at parse time -- $@ \n"
+}
+
+eval {
+  $c = Tuttle::Config->new ('badkeytest', "$base/badkeytest/Tuttle");
+  $c->check_full;
+};
+
 if (!$@) {
-  die "Undefined keyword not detected -- $@ \n"
+  die "Failed to detect bad crontab in check_full";
+}
+
+eval {
+  $c = Tuttle::Config->new ('badkeytest', "$base/badkeytest/Tuttle");
+  $c->install ('foo');
+};
+
+if (!$@) {
+  die '"Successful" install with bad crontab?!';
 }
 
 $c = Tuttle::Config->new ('hosts_of_role', 
@@ -121,6 +139,11 @@ sub install_test {
   my $dir_name = "$FindBin::Bin/../$ref_name";
   if (0 != system ("diff -qr --exclude=CVS --exclude=gold $dir_name $sandbox")) {
     die "Unexpected differences with $dir_name";
+  }
+  if (-d "$sandbox/var/spool/invoices/CVS" || 
+      -d "$sandbox/var/spool/invoices/client1/CVS")
+  {
+    die "'tree' directive copying CVS files"
   }
 }
 
