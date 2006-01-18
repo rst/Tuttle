@@ -737,6 +737,22 @@ sub substitute_keywords {
   return $string;
 }
 
+=head2 $config->keyword_value ($keyword)
+
+Returns the defined value of keyword $keyword.  That is, if the
+Roles.conf file contains
+
+   define my_var foo
+
+then $config->keyword_value('my_var') will return 'foo'.  This
+is the underlying mechanism for $tuttle:my_var$ substitutions;
+thus, my_var can also be the tag of a directory (in which case
+the full path will be returned), or 'hosts:foo' (which gives
+a list of hosts with role foo --- though in that case, you might
+as well call $config->hosts_of_role directly).
+
+=cut
+
 sub keyword_value {
   my ($self, $keyword) = @_;
   if ($keyword =~ /hosts:(.*)$/) {
