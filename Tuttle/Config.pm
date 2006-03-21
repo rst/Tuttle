@@ -201,8 +201,12 @@ sub install_role {
     $self->install_role ($sub_role, $install_status);
   }
 
-  # OK.  Get directories in place before anything else.
+  # OK.  Get packages and directories in place before anything else.
   # (Crontabs and services presumably depend on this stuff).
+
+  for my $package (@{$role_spec->{packages}}) {
+    $self->install_package ($package)
+  }
 
   for my $dir_spec (@{$role_spec->{dirs}}) {
     $self->install_dir ($dir_spec);
@@ -608,11 +612,29 @@ sub dirs_of_role {
   return $self->{roles}{$role}{dirs};
 }
 
+=head2 $config->packages_of_role($rolename)
+
+Returns the list of packages that will be installed or freshened
+nightly on all hosts with this role.
+
+=cut
+
+sub packages_of_role {
+  my ($self, $role) = @_;
+  return $self->{roles}{$role}{packages};
+}
+
 ################################################################
 #
 # Dealing with the grotty details of interfacing to the rest
 # of the system.  Also deals with the differences between running
 # live and running in the "no root required" test harness.
+
+sub install_package {
+  my ($self, $package) = @_;
+  my $installer = $self->{install_prefix} . '/usr/bin/apt-get';
+  $self->run_command ($installer, 'install', $package);
+}
 
 sub install_file_copy {
   my ($self, $src, $declared_dest, %flags) = @_;
@@ -930,6 +952,9 @@ sub parse_role {
        elsif ($decl eq 'file') {
 	 push @{$self->{roles}{$role_name}{dirs}},
 	   $self->parse_standalone_file ($parse_state, @decl_args);
+       }
+       elsif ($decl eq 'package') {
+	 push @{$self->{roles}{$role_name}{packages}}, @decl_args
        }
        else {
 	 $self->syntax_error ($parse_state);
