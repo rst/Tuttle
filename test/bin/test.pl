@@ -121,6 +121,7 @@ for my $k (keys %$expect_chmods) {
 
 print "Wipe\n";
 $c->install ('wiper');
+unlink "$sandbox/etc/packages";	# doesn't uninstall in real life
 &install_test ('sandbox0');
 
 print "Install pratt\n";
@@ -132,6 +133,7 @@ $c->install ('whitney');
 &install_test ('sandbox.whpratt');
 print "Wipe\n";
 $c->install ('wiper');
+unlink "$sandbox/etc/packages";	# doesn't uninstall in real life
 &install_test ('sandbox0');
 
 sub install_test {

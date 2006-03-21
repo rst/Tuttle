@@ -1,0 +1,22 @@
+#! /usr/bin/perl -w
+
+use FindBin;
+use strict;
+
+my $rcdir  = $FindBin::Bin . '/../../etc';
+chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
+
+if ($ARGV[0] ne 'install') {
+  die "Unexpected args to apt-get; expected 'apt-get install...', got $ARGV[0]"
+}
+
+shift;
+
+open (OUT, ">>$rcdir/packages");
+
+for my $pkg (@ARGV) {
+  print OUT $pkg, "\n"
+}
+
+close OUT
+
