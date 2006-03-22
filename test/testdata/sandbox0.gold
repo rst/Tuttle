@@ -1,0 +1,251 @@
+==== ./etc d755
+==== ./etc/cron.d d755
+==== ./etc/rc.d d755
+==== ./etc/rc.d/enabled d755
+==== ./etc/rc.d/init.d d755
+==== ./etc/rc.d/init.d/bar 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./etc/rc.d/init.d/foo 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold d755
+==== ./gold/badkeytest d755
+==== ./gold/badkeytest/Tuttle 644 SvQd0LZKjutztihj1Mtlfw
+role foo
+  hosts foo
+  crontab foo
+==== ./gold/badkeytest/cron.foo 644 gXp3XNc214H0R9ved+7W3g
+Let's see if it complains about $tuttle:undefined$
+==== ./gold/hosts_of_role_test d755
+==== ./gold/hosts_of_role_test/Roles.conf 644 yLC7PQOKPpGLXBwOfvJZ7g
+role a
+  has b
+  hosts a1 a2
+
+role b
+  has d
+  hosts b1 b2
+
+role c
+  hosts c1 c2
+
+role d
+  hosts d1 d2
+==== ./gold/looptest d755
+==== ./gold/looptest/Tuttle 644 JZp22DlsciPdUV89w/cHlA
+role a
+  has b
+
+role b
+  has c d
+
+role c
+  has e f
+
+role e
+
+role f
+  has b
+==== ./gold/slae-server-test0 d755
+==== ./gold/slae-server-test0/Makefile 644 SnLA3vSkwfGxdMxEjOPVXQ
+configure:
+	echo "    make configure"
+
+fixups.production:
+	echo "    make fixups.production"
+==== ./gold/slae-server-test0/README 644 WjH5a9+mblon+LDmCzWkaA
+Mock release of "web and slae code"
+==== ./gold/tuttle d755
+==== ./gold/tuttle/test0 d755
+==== ./gold/tuttle/test0/Roles.conf 644 6h7AzNMcO1ryhykhF1D/XQ
+# This is the sort of thing I expect to appear in my combined
+# config director files...
+
+# Auxiliary config dir...
+
+config_files_from ../test0a
+
+# Some substitutions to see if they show up in crontabs.
+
+define fred mertz
+define ricky ricardo
+
+# First, assignment of hosts to one or more roles.
+# Put these at the top; they're automatically combined with
+# configuration directives for the same roles below...
+
+role web_server
+  hosts pratt whitney
+
+role batch_server
+  hosts rolls
+
+role db_updates
+  hosts pratt
+
+role wipeout
+  hosts wiper
+
+# And samples for the roles we seem to have in a web installation.
+# BTW, the following requires a cleanup in web/Makefile; there's a
+# stray line of fixups in "install.tmp"...
+
+role web_code
+  service web
+  dir web_dir /web/$tuttle:id$
+    release slae-server-$tuttle:id$ -v
+    file configFile.txt
+    #file SSLfoo config/SSLfoo
+    #file pConfigFile.txt perl/configFile.txt
+    setup make configure fixups.production
+
+role slae_code
+  service slae
+  crontab slae_update
+  file foofile /etc/foo-$tuttle:id$.file
+  dir slae_dir /opt/slae-$tuttle:id$
+    release slae-server-$tuttle:id$
+    file configFile.txt     # some of the same options
+  dir slae_log_dir  /var/log/slae/$tuttle:id$          owner=advisor mode=0714
+  dir slae_conf_dir /var/spool/slae-config/$tuttle:id$ owner=advisor mode=0741
+    file slae_pieces.conf slae_pieces.conf owner=slae_owner mode=0673
+  dir inv_spool_dir /var/spool/invoices
+    tree sample_invoice_tree
+
+role batch_server
+  has web_code slae_code
+  crontab batch
+
+role web_server
+  has web_code
+  crontab web
+
+role db_updates
+  has slae_code             # including the service.  Easy to fix, if we care. 
+  crontab db_update
+  crontab dbmaint
+  package foo bar
+  package zot
+  file flippit /etc/floppit owner=kermit_frog mode=467
+==== ./gold/tuttle/test0/SSLfoo 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/configFile.txt 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.batch 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.mods 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.slae_update 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.web 644 XV5UEuIGY4XdxC+s4oYNlg
+foo $tuttle:id$ bar $tuttle:fred$ zot
+zzz log $tuttle:slae_log_dir$
+fu $tuttle:ricky$ bar $tuttle:id$ zt
+xxx conf $tuttle:slae_conf_dir$ slae $tuttle:slae_dir$
+a $tuttle:fred$ b
+
+==== ./gold/tuttle/test0/flippit 644 ftxAow4CFPOhd9+SgribWg
+List of web code hosts:
+
+  $tuttle:hosts:web_code$
+
+Note that none are explicitly declared... if it finds them, it's through
+subrole chaining.
+==== ./gold/tuttle/test0/pConfigFile.txt 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/sample_invoice_tree d755
+==== ./gold/tuttle/test0/sample_invoice_tree/.htaccess 644 Mn2cYx90L9Mla/zsf/I1xA
+<!-- .htaccess for the whole shooting match -->
+==== ./gold/tuttle/test0/sample_invoice_tree/README 644 N/lFhD8y/8u7o62eg9og3Q
+This is the README for the sample invoice tree.
+Hi, there!
+==== ./gold/tuttle/test0/sample_invoice_tree/client1 d755
+==== ./gold/tuttle/test0/sample_invoice_tree/client1/.htaccess 644 t/TJ8tyV8mNYifKPjDoPqQ
+<!-- .htaccess for client 1 -->
+==== ./gold/tuttle/test0/sample_invoice_tree/client2 d755
+==== ./gold/tuttle/test0/sample_invoice_tree/client2/.htaccess 644 t/TJ8tyV8mNYifKPjDoPqQ
+<!-- .htaccess for client 1 -->
+==== ./gold/tuttle/test0/service.slae 755 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/service.web 755 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/slae_pieces.conf 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0a d755
+==== ./gold/tuttle/test0a/cron.db_update 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0a/cron.dbmaint 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0a/foofile 644 RI53BuehgiUbBmLhOz8M4Q
+Foo for $tuttle:id$.
+==== ./gold/wipeerrtest d755
+==== ./gold/wipeerrtest/Tuttle 644 9wLWKHIeNqboeQH94ITZng
+role wipeout
+  hosts a b
+
+role other
+  hosts b
+==== ./opt d755
+==== ./sbin d755
+==== ./sbin/chkconfig 755 RoZpoptxF1Ea+JZIesgaRA
+#! /usr/bin/perl -w
+
+use FindBin;
+use strict;
+
+my $rcdir  = $FindBin::Bin . '/../etc/rc.d/init.d';
+chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
+
+if ($#ARGV < 0) {
+  my @services = <*>;
+  for my $service (@services) {
+    my $enabled = (-e "../enabled/$service");
+    print $service, ' ', $enabled ? 'on' : 'off', "\n";
+  }
+  exit (0);
+}
+
+if ($#ARGV != 1) {
+  die "Sorry -- not mocking up more of chkconfig than we have to.";
+}
+
+my ($service, $flag) = @ARGV;
+
+if ($flag ne 'on' && $flag ne 'off') {
+  die "Sorry -- not mocking up more of chkconfig than we have to.";
+}
+
+if (! -f $service) {
+  die "Service $service not installed";
+}
+
+if ($flag eq 'on' && ! -e "../enabled/$service") {
+  link $service, "../enabled/$service"
+    or die "Couldn't create link to $service: $!"
+}
+elsif ($flag eq 'off' && -e "../enabled/$service") {
+  unlink "../enabled/$service"
+    or die "Couldn't remove link to $service: $!"
+}
+==== ./usr d755
+==== ./usr/bin d755
+==== ./usr/bin/apt-get 755 nutbplrQRSmYeB7gxNkrdQ
+#! /usr/bin/perl -w
+
+use FindBin;
+use strict;
+
+my $rcdir  = $FindBin::Bin . '/../../etc';
+chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
+
+if ($ARGV[0] ne 'install') {
+  die "Unexpected args to apt-get; expected 'apt-get install...', got $ARGV[0]"
+}
+
+shift;
+
+open (OUT, ">>$rcdir/packages");
+
+for my $pkg (@ARGV) {
+  print OUT $pkg, "\n"
+}
+
+close OUT
+
+==== ./usr/local d755
+==== ./usr/local/bin d755
+==== ./usr/local/bin/goldpull 755 5ZNqQ0/Us/E0W6A/K3uTuw
+#! /bin/sh
+exit 0
+==== ./var d755
+==== ./var/log d755
+==== ./var/log/slae d755
+==== ./var/spool d755
+==== ./var/spool/slae-config d755
+==== ./web d755

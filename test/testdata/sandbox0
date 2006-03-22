@@ -1,0 +1,85 @@
+==== ./etc d755
+==== ./etc/cron.d d755
+==== ./etc/rc.d d755
+==== ./etc/rc.d/enabled d755
+==== ./etc/rc.d/init.d d755
+==== ./etc/rc.d/init.d/bar 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./etc/rc.d/init.d/foo 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./opt d755
+==== ./sbin d755
+==== ./sbin/chkconfig 755 RoZpoptxF1Ea+JZIesgaRA
+#! /usr/bin/perl -w
+
+use FindBin;
+use strict;
+
+my $rcdir  = $FindBin::Bin . '/../etc/rc.d/init.d';
+chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
+
+if ($#ARGV < 0) {
+  my @services = <*>;
+  for my $service (@services) {
+    my $enabled = (-e "../enabled/$service");
+    print $service, ' ', $enabled ? 'on' : 'off', "\n";
+  }
+  exit (0);
+}
+
+if ($#ARGV != 1) {
+  die "Sorry -- not mocking up more of chkconfig than we have to.";
+}
+
+my ($service, $flag) = @ARGV;
+
+if ($flag ne 'on' && $flag ne 'off') {
+  die "Sorry -- not mocking up more of chkconfig than we have to.";
+}
+
+if (! -f $service) {
+  die "Service $service not installed";
+}
+
+if ($flag eq 'on' && ! -e "../enabled/$service") {
+  link $service, "../enabled/$service"
+    or die "Couldn't create link to $service: $!"
+}
+elsif ($flag eq 'off' && -e "../enabled/$service") {
+  unlink "../enabled/$service"
+    or die "Couldn't remove link to $service: $!"
+}
+==== ./usr d755
+==== ./usr/bin d755
+==== ./usr/bin/apt-get 755 nutbplrQRSmYeB7gxNkrdQ
+#! /usr/bin/perl -w
+
+use FindBin;
+use strict;
+
+my $rcdir  = $FindBin::Bin . '/../../etc';
+chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
+
+if ($ARGV[0] ne 'install') {
+  die "Unexpected args to apt-get; expected 'apt-get install...', got $ARGV[0]"
+}
+
+shift;
+
+open (OUT, ">>$rcdir/packages");
+
+for my $pkg (@ARGV) {
+  print OUT $pkg, "\n"
+}
+
+close OUT
+
+==== ./usr/local d755
+==== ./usr/local/bin d755
+==== ./usr/local/bin/goldpull 755 5ZNqQ0/Us/E0W6A/K3uTuw
+#! /bin/sh
+exit 0
+==== ./var d755
+==== ./var/log d755
+==== ./var/log/slae d755
+==== ./var/spool d755
+==== ./var/spool/slae-config d755
+==== ./web d755
