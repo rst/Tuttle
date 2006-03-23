@@ -153,11 +153,6 @@ sub install_test {
   if (0 != system ("diff -u $good_data_locn $arch_locn")) {
     die "Unexpected differences with $arch_locn";
   }
-  if (-d "$sandbox/var/spool/invoices/CVS" ||
-      -d "$sandbox/var/spool/invoices/client1/CVS")
-  {
-    die "'tree' directive copying CVS files"
-  }
 }
 
 sub freeze_dry_sandbox {
@@ -175,8 +170,7 @@ sub freeze_dry_dir {
   my @entries = readdir DIR;
   closedir DIR;
 
-  @entries = sort (grep { $_ ne 'CVS' && $_ ne 'gold'
-			  && $_ ne '.' && $_ ne '..'
+  @entries = sort (grep { $_ ne 'gold' && $_ ne '.' && $_ ne '..'
 			} @entries);
 
   for my $entry (@entries) {
