@@ -83,6 +83,17 @@ if ($c->keyword_value ('hosts:d') ne 'a1 a2 b1 b2 d1 d2'
   die "Can't compute roles of host"
 }
 
+eval {
+  $c = Tuttle::Config->new('bad_dir_test', "$base/bad_dir_test/Roles.conf")
+};
+
+if (!$@) {
+  die "'Dir' syntax error not detected";
+}
+else {
+  print "'Dir' syntax error detected --- $@\n"
+}
+
 # First test installation...
 
 $c = Tuttle::Config->new ('test0', "$base/tuttle/test0/Roles.conf", $sandbox);

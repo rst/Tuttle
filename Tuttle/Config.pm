@@ -943,7 +943,7 @@ sub parse_role {
 	 push @{$self->{roles}{$role_name}{services}}, @decl_args;
        } elsif ($decl eq 'crontab') {
 	 push @{$self->{roles}{$role_name}{crontabs}}, @decl_args;
-       } elsif ($decl eq 'dir') {
+       } elsif ($decl eq 'dir' && $#decl_args >= 1) {
 	 $self->{keywords}{$decl_args[0]} = $decl_args[1];
 	 push @{$self->{roles}{$role_name}{dirs}},
 	   $self->parse_dir ($decl_args[0], $decl_args[1], $parse_state,

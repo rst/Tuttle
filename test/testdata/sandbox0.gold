@@ -43,6 +43,10 @@ role e
 
 role f
   has b
+==== ./gold/bad_dir_test d755
+==== ./gold/bad_dir_test/Roles.conf 644 no_checksum
+role a
+  dir bar
 ==== ./gold/slae-server-test0 d755
 ==== ./gold/slae-server-test0/Makefile 644 SnLA3vSkwfGxdMxEjOPVXQ
 configure:
