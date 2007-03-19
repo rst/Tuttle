@@ -1,0 +1,7 @@
+This is Tuttle --- the Tiny Utility Toolkit for Tweaking Large Environments.
+
+It is designed to maintain environments consisting of cooperating processes
+on multiple Linux (or other Unix) hosts.  See "perldoc Tuttle" for more.
+
+It is distributed under the terms of the GNU General Public License,
+version 2.
