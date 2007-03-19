@@ -10,9 +10,7 @@
 ### END INIT INFO
 # description: /web/suse
 
-# Actual procedures specified in, yes, a Makefile.  Sigh...
-
 cd "$tuttle:web_dir$"
 
-# ... more stuff goes here ...
+# ... more stuff goes here, a la "cruncher" ...
 
