@@ -1,9 +1,6 @@
 MAILTO=$tuttle:notification_email$
 
-## Restart slae at midnight.  Decoupled from data update.
-## See bug #3607 for discussion. This fixes a known problem where slae could run
-## with the wrong data if the machine dies after the above job runs, but before
-## midnight.
+## Restart cruncher at midnight.  Decoupled from data update.
 
 01 00 * * * root /etc/init.d/$tuttle:id$.cruncher restart
 
