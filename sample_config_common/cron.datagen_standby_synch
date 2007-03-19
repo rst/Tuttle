@@ -3,5 +3,5 @@
 
 MAILTO=$tuttle:notification_email$
 
-45 19 * * * root /usr/local/bin/slaedbu --delete -avz $tuttle:data_server$:$tuttle:datagen_data_dir$/ $tuttle:datagen_data_dir$/
+45 19 * * * root $tuttle:datagen_code_dir$/copy --delete -avz $tuttle:data_server$:$tuttle:datagen_data_dir$/ $tuttle:datagen_data_dir$/
 

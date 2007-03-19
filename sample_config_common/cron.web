@@ -5,4 +5,4 @@ MAILTO=$tuttle:notification_email$
 # Run batch analysis ONLY during off hours on interactive machines
 # Weekdays - limit to non-market hours.
 
-09 0-8 * * 1-5 $tuttle:analysis_user$ cd $tuttle:web_dir$/perl; perl util/analysis_queue_process.pl configured-user-db $tuttle:job_queue_name$ 60 3600 >> ../logs/cron/analysis_queue_process.log 2>&1;
+09 0-8 * * 1-5 $tuttle:analysis_user$ cd $tuttle:web_dir$/perl; perl util/analysis_queue_process.pl $tuttle:job_queue_name$

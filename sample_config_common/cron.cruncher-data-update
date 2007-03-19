@@ -1,6 +1,3 @@
 MAILTO=$tuttle:notification_email$
 
-# Give the update job a twenty minute jitter window.
-# This update pulls new slae data.
-
 02 22 * * * root PATH=$PATH:/usr/local/bin; $tuttle:cruncher_dir$/bin/data-update $tuttle:data_release$ $tuttle:data_server$
