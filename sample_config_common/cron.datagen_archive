@@ -1,0 +1,14 @@
+#
+# This file was generated programmatically by
+#   $Header: /home/rst/tuttle.scm/cvs/tuttle/sample_config_common/cron.datagen_archive,v 1.1 2007-03-19 16:36:32 rst Exp $
+#
+# If you edit it, your changes will be overwritten.
+#
+
+
+#
+# datagena archive crons for $tuttle:datagen_user$@`hostname -s`
+#
+
+# archive
+44 12 3,13,23 * *    $tuttle:datagen_user$    d=/var/spool/data/$tuttle:datagen_user$; test -e $d || exit; cd $d; /opt/datagen-$tuttle:id$/offline/sl-update/archive.pl slae ../preserve/slae/arch.$tuttle:datagen_user$.{,meta.}$(date +\%Y.\%m.\%d.\%s.zip) 2>&1 | mail -s "`hostname -s` $tuttle:datagen_user$ archive job" `hostname -s`-$tuttle:datagen_user$@smartleaf.com

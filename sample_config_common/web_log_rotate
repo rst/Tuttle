@@ -1,0 +1,42 @@
+
+# Daily rotations, unless otherwise
+daily
+
+# How many do we keep around?  We need to do log aggregation (not
+# written yet), so we keep them around "forever" right now.
+
+# Give myself 180 days to write the code.  If log aggregation hasn't
+# happened by then, I'm a loser and deserve suffering.
+# Once that happens, this number should decrease to something more rational.
+
+# (Looks like *that* didn't happen...)
+
+rotate 180
+
+missingok
+
+# Don't compress the file on rotation; do it the second time.  We like
+# to keep yesterday's around uncompressed.
+# In fact, we *have* to keep the logs uncompressed for a day, because
+# we don't restart the Web server ourselves.
+delaycompress
+
+# Compress older log files.
+compress
+
+# The server hit log
+$tuttle:web_logs$/accesses {
+}
+
+$tuttle:web_logs$/errors {
+}
+
+$tuttle:web_logs$/cron/mail_threshhold_alerts.log {
+}
+
+$tuttle:web_logs$/cron/analysis_queue_process.log {
+}
+
+$tuttle:web_logs$/cron/upload_queue_process.log {
+}
+

@@ -1,0 +1,51 @@
+#!/bin/sh -x
+#
+# $Header: /home/rst/tuttle.scm/cvs/tuttle/sample_config_common/service.datagen,v 1.1 2007-03-19 16:36:32 rst Exp $
+#
+# chkconfig: 2345 20 80
+### BEGIN INIT INFO
+# Provides:       dataweb.$tuttle:id$
+# Default-Start:  2 3 5
+# Default-Stop:   0 1 6
+# Description:    Start dataweb.$tuttle:id$
+### END INIT INFO
+#
+# Description: 
+#   This is our rc script for starting and stopping a dataweb apache 
+#   server. We maintain this file in the datagen CVS module. When we 
+#   want to build a new dataweb server, we copy this file into 
+#   /etc/rc.d/init.d, edit it (see comments below) and then start 
+#   the server using this script. (After starting a newly built 
+#   server, don't forget to chkconfig it so that it will restart 
+#   automatically next time the computer reboots).
+#
+
+#
+# This is the directory where the dataweb source and
+# config files live in the current datagen release.
+#
+WEBDIR=/opt/datagen-$tuttle:id$/offline/dataweb
+
+test -d $WEBDIR || exit 0
+cd $WEBDIR
+
+function start { ./run-httpd -u $tuttle:datagen_user$; }
+function stop  { ./run-httpd -u $tuttle:datagen_user$ -kill; }
+
+# do it
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        sleep 5
+        start
+        ;;
+    *)
+        echo "$0: $1 not understood"
+        ;;
+esac

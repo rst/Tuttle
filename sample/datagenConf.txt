@@ -1,0 +1,2 @@
+datagen_specific_var1=val1
+datagen_specific_notify=$tuttle:notification_email$

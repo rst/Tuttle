@@ -1,0 +1,15 @@
+#!/bin/sh
+# chkconfig: 2345 82 18
+### BEGIN INIT INFO
+# Provides:       web.$tuttle:id$
+# Required-Start: cron
+# Required-Stop:  cron
+# Default-Start:  2 3 5
+# Default-Stop:   0 1 6
+# Description:    Start web service for $tuttle:id$
+### END INIT INFO
+# description: /web/suse
+
+# Actual procedures specified in, yes, a Makefile.  Sigh...
+
+cd "$tuttle:web_dir$" && make SERVER_ROOT="$tuttle:web_dir$" "$@.production"

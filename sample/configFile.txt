@@ -1,0 +1,11 @@
+queue_name=$tuttle:job_queue_name$
+
+opt_port=$tuttle:cruncher_port$
+batch_port=$tuttle:batch_port$
+super_user_port=$tuttle:super_user_port$
+
+# Let demo/test users have more login time...
+brand_authentication_ticket_lifetime_hours.default=4
+
+
+
