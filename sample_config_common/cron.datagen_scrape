@@ -3,4 +3,4 @@
 #
 
 # scrape
-15 18 * * 1-5  tuttle:datagen_user$  $tuttle:datagen-code_dir$/update -f
+15 18 * * 1-5  tuttle:datagen_user$  $tuttle:datagen_code_dir$/update -f
