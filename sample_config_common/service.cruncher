@@ -11,37 +11,16 @@
 # Description:    Start cruncher.$tuttle:id$
 ### END INIT INFO
 
-cruncherstart=$tuttle:cruncher_dir$/slopt/src/admin/cruncherstart
+# More or less the usual thing...
+
 pidfile=/var/run/cruncher.$tuttle:id$.pid
 
 exitstat=0
 
 case "$1" in
   start)
-	shift
-	touch $pidfile
-	chown advisor $pidfile
-
-	cruncher_args=$tuttle:cruncher_dir$ $tuttle:cruncher_conf_spool$ $* -i ${pidfile}"
-
-	# Pass arguments down to cruncherstart.
-	#
-	su - advisor -c "${cruncherstart} ${cruncher_args}"
-
-	if [ $? != 0 ]; then
-	    echo "
-
-FAILED
-
-"
-	    exitstat=1
-	else
-	    echo "
-
-OK
-
-"
-	fi
+     echo Starting cruncher
+     $tuttle:cruncher_dir$/cruncher -p ${pidfile}
   ;;
   stop)
      kill `cat ${pidfile}`
