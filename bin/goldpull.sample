@@ -1,0 +1,12 @@
+#! /usr/bin/perl -w
+
+use FindBin;
+
+$goldserver='aurum.int.smartleaf.com';
+$goldrsh = "$FindBin::Bin/goldrsh.sample";
+$target_dir = $ARGV[0];
+
+@foo = ('rsync', '-e', $goldrsh, '-qavz', '--delete',
+  "$goldserver:/export/$target_dir/", "/gold/$target_dir/");
+
+exec @foo;

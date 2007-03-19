@@ -19,18 +19,23 @@ use strict;
 
 =head1 SYNOPSIS
 
-  Typically used on the command line:
+  Typically run from /etc/cron.d/tuttle_master_job, which invokes
 
-    perl /gold/tuttle/doit
+    perl /gold/tuttle/bin/tuttle-master-job
 
-  which is a trivial wrapper around this:
+  or directly to update a host's configuration for a particular environment:
+
+    perl /gold/tuttle/bin/configure-for $environment_name
+
+  which is, effectively, a wrapper around this:
 
     use lib '/gold/tuttle';
     use Tuttle::Config;
 
     chdir '/gold/tuttle';
-    for my $dir (grep { $_ ne 'Tuttle' } <*>)
+    for my $dir (@ARGV) {
       Tuttle::Config->new ($dir, "$dir/Roles.conf")->install;
+    }
 
   There are programmatic interfaces to the routines which install
   individual crontabs, services, etc.; these are documented here as

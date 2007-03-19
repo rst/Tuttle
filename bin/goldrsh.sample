@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Originally by Dan Hagerty...
+
+REMOTE_USER="gold"
+GOLD_KEY="/var/spool/gold-client/.ssh/gold-key"
+SSH_PORT=5022
+
+exec ssh -x -a -e none 							\
+	-1								\
+	-o "CheckHostIP no"						\
+	-i $GOLD_KEY 							\
+	-l $REMOTE_USER 						\
+	-p $SSH_PORT							\
+        $SSH_VERBOSE                                                    \
+	"$@"
