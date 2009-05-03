@@ -23,21 +23,18 @@ use lib "${FindBin::Bin}/..";
 use Tuttle::Config;
 use strict;
 
-my $code = 0;
-
 chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
 
-for my $dir (<*>) {
-  my $file = "$dir/Roles.conf";
-  if (-f $file) {
-    eval {
-      Tuttle::Config->new ($dir, $file)->install;
-    };
-    if ($@) {
-      print STDERR "Error evaluting configuration $dir:\n", $@, "\n";
-      $code += 1;
-    }
+my @dirs = @ARGV;
+
+for my $dir (@dirs) {
+  if (! -f "$dir/Roles.conf") {
+    die "Configuration $dir not known"
   }
 }
 
-exit $code;
+for my $dir (@dirs) {
+  my ($conf) = Tuttle::Config->new ($dir, "$dir/Roles.conf");
+  $conf->disable;
+  $conf->install;
+}

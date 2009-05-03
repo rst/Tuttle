@@ -4,13 +4,6 @@
 exec /bin/sh "$@"
 ==== ./etc d755
 ==== ./etc/cron.d d755
-==== ./etc/cron.d/test0-web 644 N89fgaUzif1toxaOamxk2A
-foo test0 bar mertz zot
-zzz log /var/log/slae/test0
-fu ricardo bar test0 zt
-xxx conf /var/spool/slae-config/test0 slae /opt/slae-test0
-a mertz b
-
 ==== ./etc/floppit 647 VDYkpfTyIGB2O5ny9M+zdQ
 List of web code hosts:
 
@@ -26,11 +19,9 @@ bar
 zot
 ==== ./etc/rc.d d755
 ==== ./etc/rc.d/enabled d755
-==== ./etc/rc.d/enabled/test0.web 755 1B2M2Y8AsgTpgAmY7PhCfg
 ==== ./etc/rc.d/init.d d755
 ==== ./etc/rc.d/init.d/bar 644 1B2M2Y8AsgTpgAmY7PhCfg
 ==== ./etc/rc.d/init.d/foo 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./etc/rc.d/init.d/test0.web 755 1B2M2Y8AsgTpgAmY7PhCfg
 ==== ./opt d755
 ==== ./opt/slae-test0 d755
 ==== ./opt/slae-test0/Makefile 644 SnLA3vSkwfGxdMxEjOPVXQ

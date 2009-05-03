@@ -1,3 +1,7 @@
+==== ./bin d755
+==== ./bin/sh 755 foo
+#! /bin/sh
+exec /bin/sh "$@"
 ==== ./etc d755
 ==== ./etc/cron.d d755
 ==== ./etc/rc.d d755
@@ -87,6 +91,45 @@ role db_updates
 role wipeout
   hosts wiper
 
+include common_roles
+==== ./gold/tuttle/test0/SSLfoo 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/configFile.txt 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.batch 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.mods 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.slae_update 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/cron.web 644 XV5UEuIGY4XdxC+s4oYNlg
+foo $tuttle:id$ bar $tuttle:fred$ zot
+zzz log $tuttle:slae_log_dir$
+fu $tuttle:ricky$ bar $tuttle:id$ zt
+xxx conf $tuttle:slae_conf_dir$ slae $tuttle:slae_dir$
+a $tuttle:fred$ b
+
+==== ./gold/tuttle/test0/flippit 644 ftxAow4CFPOhd9+SgribWg
+List of web code hosts:
+
+  $tuttle:hosts:web_code$
+
+Note that none are explicitly declared... if it finds them, it's through
+subrole chaining.
+==== ./gold/tuttle/test0/pConfigFile.txt 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/sample_invoice_tree d755
+==== ./gold/tuttle/test0/sample_invoice_tree/.htaccess 644 Mn2cYx90L9Mla/zsf/I1xA
+<!-- .htaccess for the whole shooting match -->
+==== ./gold/tuttle/test0/sample_invoice_tree/README 644 N/lFhD8y/8u7o62eg9og3Q
+This is the README for the sample invoice tree.
+Hi, there!
+==== ./gold/tuttle/test0/sample_invoice_tree/client1 d755
+==== ./gold/tuttle/test0/sample_invoice_tree/client1/.htaccess 644 t/TJ8tyV8mNYifKPjDoPqQ
+<!-- .htaccess for client 1 -->
+==== ./gold/tuttle/test0/sample_invoice_tree/client2 d755
+==== ./gold/tuttle/test0/sample_invoice_tree/client2/.htaccess 644 t/TJ8tyV8mNYifKPjDoPqQ
+<!-- .htaccess for client 1 -->
+==== ./gold/tuttle/test0/service.slae 755 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/service.web 755 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0/slae_pieces.conf 644 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold/tuttle/test0a d755
+==== ./gold/tuttle/test0a/common_roles 644 dummy
+
 # And samples for the roles we seem to have in a web installation.
 # BTW, the following requires a cleanup in web/Makefile; there's a
 # stray line of fixups in "install.tmp"...
@@ -127,43 +170,8 @@ role db_updates
   crontab dbmaint
   package foo bar
   package zot
-  file flippit /etc/floppit owner=kermit_frog mode=467
-==== ./gold/tuttle/test0/SSLfoo 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/configFile.txt 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/cron.batch 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/cron.mods 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/cron.slae_update 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/cron.web 644 XV5UEuIGY4XdxC+s4oYNlg
-foo $tuttle:id$ bar $tuttle:fred$ zot
-zzz log $tuttle:slae_log_dir$
-fu $tuttle:ricky$ bar $tuttle:id$ zt
-xxx conf $tuttle:slae_conf_dir$ slae $tuttle:slae_dir$
-a $tuttle:fred$ b
+  file flippit /etc/floppit owner=kermit_frog mode=647
 
-==== ./gold/tuttle/test0/flippit 644 ftxAow4CFPOhd9+SgribWg
-List of web code hosts:
-
-  $tuttle:hosts:web_code$
-
-Note that none are explicitly declared... if it finds them, it's through
-subrole chaining.
-==== ./gold/tuttle/test0/pConfigFile.txt 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/sample_invoice_tree d755
-==== ./gold/tuttle/test0/sample_invoice_tree/.htaccess 644 Mn2cYx90L9Mla/zsf/I1xA
-<!-- .htaccess for the whole shooting match -->
-==== ./gold/tuttle/test0/sample_invoice_tree/README 644 N/lFhD8y/8u7o62eg9og3Q
-This is the README for the sample invoice tree.
-Hi, there!
-==== ./gold/tuttle/test0/sample_invoice_tree/client1 d755
-==== ./gold/tuttle/test0/sample_invoice_tree/client1/.htaccess 644 t/TJ8tyV8mNYifKPjDoPqQ
-<!-- .htaccess for client 1 -->
-==== ./gold/tuttle/test0/sample_invoice_tree/client2 d755
-==== ./gold/tuttle/test0/sample_invoice_tree/client2/.htaccess 644 t/TJ8tyV8mNYifKPjDoPqQ
-<!-- .htaccess for client 1 -->
-==== ./gold/tuttle/test0/service.slae 755 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/service.web 755 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0/slae_pieces.conf 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./gold/tuttle/test0a d755
 ==== ./gold/tuttle/test0a/cron.db_update 644 1B2M2Y8AsgTpgAmY7PhCfg
 ==== ./gold/tuttle/test0a/cron.dbmaint 644 1B2M2Y8AsgTpgAmY7PhCfg
 ==== ./gold/tuttle/test0a/foofile 644 RI53BuehgiUbBmLhOz8M4Q
@@ -234,14 +242,29 @@ if ($ARGV[0] ne 'install') {
 
 shift;
 
+my @packages;
+
+if (-f "$rcdir/packages") {
+  open (IN, "<$rcdir/packages");
+
+  while (<IN>) {
+    chomp;
+    print "Got old package '$_'\n";
+    push @packages, $_
+  }
+}
+
 open (OUT, ">>$rcdir/packages");
 
 for my $pkg (@ARGV) {
-  print OUT $pkg, "\n"
+  print OUT $pkg, "\n" unless (grep { $_ eq $pkg } @packages)
 }
 
 close OUT
 
+==== ./usr/bin/rsync 755 foo
+#! /bin/sh
+exec /usr/bin/rsync "$@"
 ==== ./usr/local d755
 ==== ./usr/local/bin d755
 ==== ./usr/local/bin/goldpull 755 5ZNqQ0/Us/E0W6A/K3uTuw

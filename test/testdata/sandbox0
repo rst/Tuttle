@@ -1,3 +1,7 @@
+==== ./bin d755
+==== ./bin/sh 755 RcwfTL2U7p8HWoC31WyvMw
+#! /bin/sh
+exec /bin/sh "$@"
 ==== ./etc d755
 ==== ./etc/cron.d d755
 ==== ./etc/rc.d d755
@@ -49,29 +53,9 @@ elsif ($flag eq 'off' && -e "../enabled/$service") {
 }
 ==== ./usr d755
 ==== ./usr/bin d755
-==== ./usr/bin/apt-get 755 nutbplrQRSmYeB7gxNkrdQ
-#! /usr/bin/perl -w
-
-use FindBin;
-use strict;
-
-my $rcdir  = $FindBin::Bin . '/../../etc';
-chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
-
-if ($ARGV[0] ne 'install') {
-  die "Unexpected args to apt-get; expected 'apt-get install...', got $ARGV[0]"
-}
-
-shift;
-
-open (OUT, ">>$rcdir/packages");
-
-for my $pkg (@ARGV) {
-  print OUT $pkg, "\n"
-}
-
-close OUT
-
+==== ./usr/bin/rsync 755 tELw6bqNpWB+InfwB2qiZA
+#! /bin/sh
+exec /usr/bin/rsync "$@"
 ==== ./usr/local d755
 ==== ./usr/local/bin d755
 ==== ./usr/local/bin/goldpull 755 5ZNqQ0/Us/E0W6A/K3uTuw

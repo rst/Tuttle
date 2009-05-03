@@ -18,12 +18,13 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 use FindBin;
+use lib "$FindBin::Bin";
 use lib "$FindBin::Bin/../..";
 use Tuttle::Config;
 use Data::Dumper;
-use File::Path;
-use IO::File;
 use Digest::MD5;
+use DiffableArchive;
+use File::Path;
 use strict;
 
 my $testdata_dir = "$FindBin::Bin/../testdata/";
@@ -33,8 +34,12 @@ my $base = "$sandbox/gold";
 # Have to set umask, to make new modes consistent with "freeze-dried"
 # regression tests.
 
+print "$FindBin::Bin/../tmp\n";
+mkpath( "$FindBin::Bin/../tmp", 1 );
+
 umask 022;
-&reconstitute_sandbox ($testdata_dir . 'sandbox0.gold');
+&DiffableArchive::reconstitute_archive ($testdata_dir . 'sandbox0.gold',
+					$sandbox);
 
 # A few error tests...
 
@@ -135,7 +140,7 @@ my $expect_chowns =
 my $expect_chmods =
 {
  '/etc/rc.d/init.d/test0.web' => '0755',
- '/etc/floppit' => '467',
+ '/etc/floppit' => '647',
  '/etc/rc.d/init.d/test0.slae' => '0755',
  '/var/spool/slae-config/test0' => '0741',
  '/var/log/slae/test0' => '0714',
@@ -163,6 +168,14 @@ print "Install pratt\n";
 $c->install ('pratt');
 system ("ls -ld $sandbox/var/log/slae/test0 $sandbox/var/spool/slae-config/test0");
 &install_test ('sandbox.pratt');
+print "Disable; check status\n";
+$c->disable;
+$c->install ('pratt');
+&install_test ('sandbox.pratt_disabled');
+print "Enable; verify undone\n";
+$c->enable;
+$c->install ('pratt');
+&install_test ('sandbox.pratt');
 print "Reinstall as whitney\n";
 $c->install ('whitney');
 &install_test ('sandbox.whpratt');
@@ -171,96 +184,35 @@ $c->install ('wiper');
 unlink "$sandbox/etc/packages";	# doesn't uninstall in real life
 &install_test ('sandbox0');
 
+################################################################
+# So much for sandbox0.  On to sandbox 1...
+
+&DiffableArchive::reconstitute_archive ($testdata_dir . 'sandbox1.gold',
+					$sandbox);
+
+eval {
+  $c = Tuttle::Config->new('forcelinktest', "$base/forcelink_test/Roles.conf",
+			      $sandbox);
+};
+
+if ($@) {
+  die "forcelink fails at parse time... -- $@ \n"
+}
+
+$c->install( 'somehost' );
+&install_test( 'sandbox1.forcelink' );
+
+print "All tests pass.\n";
+
 sub install_test {
   my ($ref_name) = @_;
   my $good_data_locn = $testdata_dir . $ref_name;
   my $arch_locn = "$FindBin::Bin/../tmp/$ref_name";
 
-  &freeze_dry_sandbox($arch_locn);
+  &DiffableArchive::create($arch_locn, $sandbox);
 
   if (0 != system ("diff -u $good_data_locn $arch_locn")) {
     die "Unexpected differences with $arch_locn";
   }
 }
 
-sub freeze_dry_sandbox {
-  my ($arch_locn) = @_;
-  my ($output) = new IO::File;
-  $output->open(">$arch_locn") or die "Couldn't open $arch_locn";
-  &freeze_dry_dir ($output, $sandbox, '.');
-  $output->close;
-}
-
-sub freeze_dry_dir {
-  my ($output, $full_path, $rel_path) = @_;
-
-  opendir (DIR, $full_path) or die "Couldn't read $full_path";
-  my @entries = readdir DIR;
-  closedir DIR;
-
-  @entries = sort (grep { $_ ne 'gold' && $_ ne '.' && $_ ne '..'
-			} @entries);
-
-  for my $entry (@entries) {
-    my $entry_full_path = "${full_path}/${entry}";
-    my $entry_rel_path  = "${rel_path}/${entry}";
-    my ($dev, $ino, $mode) = stat $entry_full_path;
-    my ($modestr) = sprintf "%o", ($mode & 0777);
-
-    if (-d $entry_full_path) {
-      print $output "==== $entry_rel_path d$modestr\n";
-      &freeze_dry_dir ($output, $entry_full_path, $entry_rel_path);
-    }
-    else {
-      # Presume ordinary file.
-      my ($chksum) = Digest::MD5->new;
-      my ($in) = new IO::File $entry_full_path, "r";
-      $chksum->addfile ($in);
-      $chksum = $chksum->b64digest;
-      $in->close;
-      print $output "==== $entry_rel_path $modestr $chksum\n";
-      $in = new IO::File $entry_full_path, "r";
-      print $output $in->getlines;
-      $in->close;
-    }
-  }
-}
-
-sub reconstitute_sandbox {
-  my ($archive) = @_;
-
-  rmtree $sandbox;
-  mkdir $sandbox or die "Couldn't create $sandbox";
-
-  open (IN, "<$archive") or die "Couldn't read $archive";
-  my ($current_output) = undef;
-
-  while (<IN>) {
-    if (! /^==== /) {
-      print $current_output $_;
-    }
-    else {
-      # Have a new header... current entry is done
-      if ($current_output) {
-	$current_output->close;
-	$current_output = undef;
-      }
-
-      if ($_ =~ /^==== ([^ ]+) d([0-7]+)/) {
-	# directory entry
-	mkdir "$sandbox/$1", oct($2) or die "Couldn't create $sandbox/$1";
-      }
-      elsif ($_ =~ /^==== ([^ ]+) ([0-7]+) (\S+)/) {
-	my $file = "$sandbox/$1";
-	$current_output = new IO::File $file, "w";
-	chmod oct($2), $file;
-	if (!$current_output) {
-	  die "Couldn't create $file";
-	}
-      }
-      else {
-	die "Garbled header $_";
-      }
-    }
-  }
-}

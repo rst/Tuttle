@@ -4,20 +4,28 @@
 exec /bin/sh "$@"
 ==== ./etc d755
 ==== ./etc/cron.d d755
-==== ./etc/cron.d/test0-web 644 N89fgaUzif1toxaOamxk2A
-foo test0 bar mertz zot
-zzz log /var/log/slae/test0
-fu ricardo bar test0 zt
-xxx conf /var/spool/slae-config/test0 slae /opt/slae-test0
-a mertz b
-
 ==== ./etc/rc.d d755
 ==== ./etc/rc.d/enabled d755
-==== ./etc/rc.d/enabled/test0.web 755 1B2M2Y8AsgTpgAmY7PhCfg
 ==== ./etc/rc.d/init.d d755
 ==== ./etc/rc.d/init.d/bar 644 1B2M2Y8AsgTpgAmY7PhCfg
 ==== ./etc/rc.d/init.d/foo 644 1B2M2Y8AsgTpgAmY7PhCfg
-==== ./etc/rc.d/init.d/test0.web 755 1B2M2Y8AsgTpgAmY7PhCfg
+==== ./gold d755
+==== ./gold/arelease d755
+==== ./gold/arelease/README 644 aLl73U/R4ndKFV3ZQcXwPw
+This is the readme file
+==== ./gold/arelease/bin d755
+==== ./gold/arelease/bin/code 644 pxgWZboX3uXKEFp29lFdqg
+This is the code
+==== ./gold/arelease/log d755
+==== ./gold/forcelink_test d755
+==== ./gold/forcelink_test/Roles.conf 644 sJOFXBGqHKMOohV9DJ2hOg
+role somerole
+  hosts somehost
+  dir somelog /var/log/somelog
+  dir somedir /usr/local/somedir
+    release arelease
+    forcelink log $tuttle:somelog$
+    forcelink other /where/ever
 ==== ./opt d755
 ==== ./sbin d755
 ==== ./sbin/chkconfig 755 RoZpoptxF1Ea+JZIesgaRA
@@ -62,6 +70,29 @@ elsif ($flag eq 'off' && -e "../enabled/$service") {
 }
 ==== ./usr d755
 ==== ./usr/bin d755
+==== ./usr/bin/apt-get 755 nutbplrQRSmYeB7gxNkrdQ
+#! /usr/bin/perl -w
+
+use FindBin;
+use strict;
+
+my $rcdir  = $FindBin::Bin . '/../../etc';
+chdir $rcdir or die "Couldn't chdir to $rcdir: $!";
+
+if ($ARGV[0] ne 'install') {
+  die "Unexpected args to apt-get; expected 'apt-get install...', got $ARGV[0]"
+}
+
+shift;
+
+open (OUT, ">>$rcdir/packages");
+
+for my $pkg (@ARGV) {
+  print OUT $pkg, "\n"
+}
+
+close OUT
+
 ==== ./usr/bin/rsync 755 tELw6bqNpWB+InfwB2qiZA
 #! /bin/sh
 exec /usr/bin/rsync "$@"
@@ -76,13 +107,3 @@ exit 0
 ==== ./var/spool d755
 ==== ./var/spool/slae-config d755
 ==== ./web d755
-==== ./web/test0 d755
-==== ./web/test0/Makefile 644 SnLA3vSkwfGxdMxEjOPVXQ
-configure:
-	echo "    make configure"
-
-fixups.production:
-	echo "    make fixups.production"
-==== ./web/test0/README 644 WjH5a9+mblon+LDmCzWkaA
-Mock release of "web and slae code"
-==== ./web/test0/configFile.txt 644 1B2M2Y8AsgTpgAmY7PhCfg

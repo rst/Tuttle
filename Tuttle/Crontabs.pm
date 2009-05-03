@@ -1,7 +1,9 @@
 #! /usr/bin/perl -w
 
+# Written 2005-2008 by Robert S. Thau
+
 #    Tuttle --- Tiny Utility Toolkit for Tweaking Large Environments
-#    Copyright (C) 2007  Smartleaf, Inc.
+#    Copyright (C) 2008  Smartleaf, Inc.
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -17,27 +19,29 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-use FindBin;
-use File::Spec;
-use lib "${FindBin::Bin}/..";
-use Tuttle::Config;
-use strict;
+=head1 NAME
 
-my $code = 0;
+  Tuttle::Crontabs -- Extenstion to handle crontabs
 
-chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
+=head1 FUNCTIONS
 
-for my $dir (<*>) {
-  my $file = "$dir/Roles.conf";
-  if (-f $file) {
-    eval {
-      Tuttle::Config->new ($dir, $file)->install;
-    };
-    if ($@) {
-      print STDERR "Error evaluting configuration $dir:\n", $@, "\n";
-      $code += 1;
-    }
-  }
+=cut
+
+package Tuttle::Crontabs;
+
+use base 'Tuttle::DdirExtension';
+
+sub dest_prefix {
+  my ($self, $config_name) = @_;
+  return "/etc/cron.d/${config_name}-"
 }
 
-exit $code;
+sub src_filename {
+  my ($self, $token) = @_;
+  return "cron.$token"
+}
+
+Tuttle::Config->declare_extension( 'Tuttle::Crontabs' );
+Tuttle::Crontabs->role_attr_declaration( 'crontab', 'note_file' );
+
+1;

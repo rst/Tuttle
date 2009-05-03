@@ -1,9 +1,9 @@
 #! /usr/bin/perl -w
 
-# Written 2005-2007 by Robert S. Thau
+# Written 2005-2008 by Robert S. Thau
 
 #    Tuttle --- Tiny Utility Toolkit for Tweaking Large Environments
-#    Copyright (C) 2007  Smartleaf, Inc.
+#    Copyright (C) 2005-2008  Smartleaf, Inc.
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,24 @@ use File::Basename;
 use File::Spec;
 use File::Find;
 use strict;
+
+our @extensions;
+our %ext_decls;
+
+sub declare_extension {
+  my ($self, $ext) = @_;
+  push @extensions, $ext;
+}
+
+sub role_attr_declaration {
+  my ($class, $ext_class, $cmd, $handler) = @_;
+  $ext_decls{$cmd} = { ext => $ext_class, handler => $handler };
+}
+
+use Tuttle::OsPackages;
+use Tuttle::Crontabs;
+use Tuttle::Services;
+use Tuttle::Apache2Vhosts;
 
 =head1 NAME
 
@@ -113,6 +131,7 @@ sub new {
   $self->{fake_mode} = defined $phony_root;
   $self->{config_search_path} = undef;
   $self->{install_record} = undef;
+  $self->{extensions} = [map { $_->new($self) } @extensions];
 
   # Reasons we can't use this config, even if we could parse it...
 
@@ -120,6 +139,68 @@ sub new {
 
   $self->parse ($filename);
   return $self;
+}
+
+=head2 $config->disable
+
+Mark this configuration as 'disabled' on this host.  (This is
+currently implemented by creating a file with the same name as
+the configuration in directory '/var/lock/tuttle-disables'.)
+
+When installing a configuration on a host where it has been
+disabled ($config->install, q.v.), nothing is actually installed,
+and all previously configured services, crontabs, etc., associated
+with the configuration are removed, whether they would otherwise
+belong on the machine or not.
+
+This is intended to allow temporary shutdowns for maintenance.
+
+=cut
+
+sub disable {
+  my ($self) = @_;
+  mkpath( $self->disable_dir, 0, 0755 );
+  my ($fh) = IO::File->new( $self->disable_path, 'w' );
+  if (!defined( $fh )) {
+    die "Could not create flag file to disable"
+  }
+  $fh->close
+}
+
+sub disable_dir {
+  my ($self) = @_;
+  return $self->{install_prefix} . '/var/lock/tuttle-disables/'
+}
+
+sub disable_path {
+  my ($self) = @_;
+  return $self->disable_dir . '/' . $self->{config_name}
+}
+
+=head2 $config->enable
+
+Mark this config as 'enabled'
+
+Undo the effects of $config->disable.
+
+=cut
+
+sub enable {
+  my ($self) = @_;
+  if ((-f $self->disable_path) && unlink($self->disable_path) != 1) {
+    die "Could not remove flag file to enable"
+  }
+}
+
+=head2 $config->is_disabled
+
+Returns true if this configuration is disabled on this host.
+
+=cut
+
+sub is_disabled {
+  my ($self) = @_;
+  return( -f $self->disable_path )
 }
 
 =head2 $config->install ($hostname, $hostname, ...)
@@ -151,6 +232,10 @@ sub install {
 
   my $roles = $self->roles_of_hosts (\@hostnames);
 
+  if ($self->is_disabled) {
+    $roles = []
+  }
+
   for my $role (@$roles) {
     $self->check_role ($role);
   }
@@ -166,34 +251,20 @@ sub install {
 
      role_configured => {},
 
-     # Pre-installed services, which we may want to delete...
-
-     unclaimed_services => $self->collect_services,
-
-     # Pre-installed crontabs, which we may want to delete...
-
-     unclaimed_crontabs => $self->collect_crontabs
-
     };
 
   $self->{install_record} = {};
+
+  for my $ext (@{$self->{extensions}}) {
+    $ext->begin_install
+  }
 
   for my $role (@$roles) {
     $self->install_role ($role, $install_status);
   }
 
-  # Now, wrapup.
-
-  for my $crontab (keys %{$install_status->{unclaimed_crontabs}}) {
-    $self->remove_crontab ($crontab);
-  }
-
-  for my $service (keys %{$install_status->{unclaimed_services}}) {
-    $self->remove_service ($service);
-  }
-
-  for my $service (keys %{$self->collect_services}) {
-    $self->restart_service ($service);
+  for my $ext (@{$self->{extensions}}) {
+    $ext->end_install
   }
 
   if ($#$roles == 0 && $roles->[0] eq 'wipeout') {
@@ -226,136 +297,18 @@ sub install_role {
   # OK.  Get packages and directories in place before anything else.
   # (Crontabs and services presumably depend on this stuff).
 
-  for my $package (@{$role_spec->{packages}}) {
-    $self->install_package ($package)
-  }
-
   for my $dir_spec (@{$role_spec->{dirs}}) {
     $self->install_dir ($dir_spec);
   }
 
-  # Now crontabs and services...
+  # Extension defined stuff...
 
-  for my $crontab (@{$role_spec->{crontabs}}) {
-    $self->install_crontab ($crontab);
-    delete $install_status->{unclaimed_crontabs}{$crontab};
+  for my $ext_obj (@{$self->{extensions}}) {
+    my $class = ref $ext_obj;
+    my $ext_state = $role_spec->{role_ext_state}{$class};
+    $ext_obj->configure_for_role( $ext_state ) if (defined ($ext_state));
   }
 
-  for my $service (@{$role_spec->{services}}) {
-    $self->install_service ($service);
-    delete $install_status->{unclaimed_services}{$service};
-  }
-}
-
-################################################################
-#
-# Crontab handling...
-
-sub crontab_prefix {
-  my ($self) = @_;
-  return "/etc/cron.d/" . $self->{config_name} . "-";
-}
-
-sub crontab_name {
-  my ($self, $token) = @_;
-  my $pfx = $self->crontab_prefix;
-  return $pfx . $token;
-}
-
-sub crontab_source_file {
-  my ($self, $token) = @_;
-  return $self->locate_config_file ('cron.' . $token);
-}
-
-sub collect_crontabs {
-  my ($self) = @_;
-  my $pfx = $self->{install_prefix} . $self->crontab_prefix;
-  my @files = <${pfx}*>;
-  return { map { substr ($_, length $pfx) => 1 } @files };
-}
-
-sub install_crontab {
-  my ($self, $token) = @_;
-
-  $self->install_file_copy ($self->crontab_source_file ($token),
-			    $self->crontab_name ($token));
-}
-
-sub remove_crontab {
-  my ($self, $token) = @_;
-  $self->remove_file ($self->crontab_name ($token));
-}
-
-sub check_crontab_spec {
-  my ($self, $role, $token) = @_;
-  $self->check_file_keywords ($self->crontab_source_file ($token));
-}
-
-################################################################
-#
-# Service handling...
-# Really die on chkconfig failures?  What else to do?
-
-sub collect_services {
-  my ($self) = @_;
-  opendir (DIR, $self->{install_prefix} . $self->service_file_dir);
-  my @services;
-  my $pfx = $self->{config_name} . '.';
-  for my $service (readdir DIR) {
-    if ($pfx eq substr ($service, 0, length $pfx)) {
-      push @services, substr ($service, length $pfx);
-    }
-  }
-  closedir DIR;
-  return { map { $_ => 1 } @services };
-}
-
-sub service_name {
-  my ($self, $token) = @_;
-  return $self->{config_name} . "." . $token;
-}
-
-sub service_file_location {
-  my ($self, $token) = @_;
-  return $self->service_file_dir . '/' . $self->service_name($token);
-}
-
-sub service_file_command {
-  # For testing purposes... sigh...
-  my ($self, $token) = @_;
-  return $self->{install_prefix} . $self->service_file_location ($token);
-}
-
-sub service_source_file {
-  my ($self, $token) = @_;
-  return $self->locate_config_file ('service.' . $token);
-}
-
-sub install_service {
-  my ($self, $token) = @_;
-  print "Install service $token\n";
-  $self->install_file_copy ($self->service_source_file ($token),
-			    $self->service_file_location ($token),
-			    mode => '0755');
-  $self->create_service_links ($self->service_name ($token));
-}
-
-sub remove_service {
-  my ($self, $token) = @_;
-  print "Remove service $token\n";
-  $self->run_command ($self->service_file_command ($token), "stop");
-  $self->remove_service_links ($self->service_name ($token));
-  $self->remove_file ($self->service_file_location ($token));
-}
-
-sub restart_service {
-  my ($self, $token) = @_;
-  $self->run_command ($self->service_file_command ($token), "restart");
-}
-
-sub check_service_spec {
-  my ($self, $role, $token) = @_;
-  $self->check_file_keywords ($self->service_source_file ($token));
 }
 
 ################################################################
@@ -419,6 +372,18 @@ sub install_dir {
 			  $self->owner_mode_fixups ($dir_spec, $dst_name);
 			}
 		      }, $tree_base);
+  }
+
+  if (defined ($dir_spec->{forcelinks})) {
+    for my $linkspec (@{$dir_spec->{forcelinks}}) {
+      my $link_from = $linkspec->{from};
+      my $link_to   = $linkspec->{to};
+      rmtree  $pfx . $dir . '/' . $link_from;
+      symlink $link_to, $pfx . $dir . '/' . $link_from;
+      if ($@) {
+	die "Error planting symlink: $@";
+      }
+    }
   }
 }
 
@@ -559,43 +524,6 @@ sub has_as_subrole {
   return 0;
 }
 
-=head2 $config->crontabs_of_role ($rolename)
-
-Returns names of all crontabs relevant to the role named $rolename.
-The general rule is that crontab 'foo_jobs' has its master copy in
-'/gold/$config_name/cron-foo_jobs', and is installed in
-'/etc/cron.d/cron-foo_jobs-$config_name', with $tuttle:foo$ keywords
-replaced by the value of keyword foo.  (Keyword 'id' is assigned the
-config_name; each "dir foo /bar/zot" creates a keyword foo whose value
-is '/bar/zot', and "define key value" at top level does the obvious
-thing).
-
-=cut
-
-sub crontabs_of_role {
-  my ($self, $role) = @_;
-  return $self->{roles}{$role}{crontabs};
-}
-
-=head2 $config->services_of_role ($rolename)
-
-Returns names of all services relevant to role $rolename, in
-any of its roles.  A service, in concrete terms, is an "init"
-file which is to be installed in /etc/rc.d, and enabled at
-boot time.
-
-The control file for service 'foo' has its master copy in
-'/gold/$config_name/foo.init', and it will be copied into
-'/etc/rc.d/foo-$config_name', with appropriate symlinks installed as
-by "chkconfig ... on".  Keyword substitution is done as for crontabs.
-
-=cut
-
-sub services_of_role {
-  my ($self, $role) = @_;
-  return $self->{roles}{$role}{services};
-}
-
 =head2 $config->dirs_of_role ($rolename)
 
 A Tuttle configuration can specify directories which are to
@@ -634,29 +562,11 @@ sub dirs_of_role {
   return $self->{roles}{$role}{dirs};
 }
 
-=head2 $config->packages_of_role($rolename)
-
-Returns the list of packages that will be installed or freshened
-nightly on all hosts with this role.
-
-=cut
-
-sub packages_of_role {
-  my ($self, $role) = @_;
-  return $self->{roles}{$role}{packages};
-}
-
 ################################################################
 #
 # Dealing with the grotty details of interfacing to the rest
 # of the system.  Also deals with the differences between running
 # live and running in the "no root required" test harness.
-
-sub install_package {
-  my ($self, $package) = @_;
-  my $installer = $self->{install_prefix} . '/usr/bin/apt-get';
-  $self->run_command ($installer, 'install', $package);
-}
 
 sub install_file_copy {
   my ($self, $src, $declared_dest, %flags) = @_;
@@ -721,54 +631,6 @@ sub run_command {
   return 1 if $status == 0;
   print STDERR "Command $str failed -- status $status\n";
   return 0;
-}
-
-# Services require particularly special treatment...
-
-sub service_file_dir {
-  my ($self) = @_;
-  for my $candidate (qw(/etc/rc.d/init.d /etc/init.d /etc/rc.d)) {
-    if (-d $self->{install_prefix} . $candidate) {
-      return $candidate;
-    }
-  }
-
-  die "Could not find service (init.d file) directory!"
-}
-
-sub chkconfig {
-  my ($self) = @_;
-  return $self->{install_prefix} . '/sbin/chkconfig';
-}
-
-sub create_service_links {
-  my ($self, $service_name) = @_;
-  my $chkconfig  = $self->{install_prefix} . '/sbin/chkconfig';
-  my $rcd_update = $self->{install_prefix} . '/usr/sbin/update-rc.d';
-  if (-x $chkconfig) {
-    $self->run_command ($chkconfig, $service_name, "on");
-  }
-  elsif (-x $rcd_update) {
-    $self->run_command ($rcd_update, $service_name, "defaults");
-  }
-  else {
-    print STDERR "Unable to create links for $service_name; could not find service link editor\n";
-  }
-}
-
-sub remove_service_links {
-  my ($self, $service_name) = @_;
-  my $chkconfig  = $self->{install_prefix} . '/sbin/chkconfig';
-  my $rcd_update = $self->{install_prefix} . '/usr/sbin/update-rc.d';
-  if (-x $chkconfig) {
-    $self->run_command ($chkconfig, $service_name, "off");
-  }
-  elsif (-x $rcd_update) {
-    $self->run_command ($rcd_update, "-f", $service_name, "remove");
-  }
-  else {
-    print STDERR "Unable to remove links for $service_name; could not find service link editor\n";
-  }
 }
 
 ################################################################
@@ -867,14 +729,13 @@ sub check_full {
 sub check_role {
   my ($self, $role) = @_;
   my $role_spec = $self->{roles}{$role};
-  for my $crontab (@{$role_spec->{crontabs}}) {
-    $self->check_crontab_spec ($role, $crontab);
-  }
-  for my $service (@{$role_spec->{services}}) {
-    $self->check_service_spec ($role, $service);
-  }
   for my $dir (@{$role_spec->{dirs}}) {
     $self->check_dir_spec ($role, $dir);
+  }
+  for my $ext (@{$self->{extensions}}) {
+    my $class = ref $ext;
+    my $role_attrs = $role_spec->{role_ext_state}{$class};
+    $ext->check_role_config( $role_attrs );
   }
 }
 
@@ -932,7 +793,7 @@ sub parse {
 	 $self->parse_role ($fields[1], $parse_state);
        }
        elsif ($fields[0] eq 'config_search_path'
-	      || $fields[0] eq 'config_files_from') 
+	      || $fields[0] eq 'config_files_from')
        {
 
 	 if ($fields[0] eq 'config_files_from' &&
@@ -943,6 +804,10 @@ sub parse {
 
 	 push @{$self->{config_search_path}},
 	   map { $self->{basename} . '/' . $_} @fields[1..$#fields];
+       }
+       elsif ($fields[0] eq 'include' && $#fields == 1) {
+	 my ($real_file) = $self->locate_config_file( $fields[1] );
+	 $self->parse( $real_file );
        }
        else {
 	 $self->syntax_error ($parse_state);
@@ -961,10 +826,6 @@ sub parse_role {
 	 push @{$self->{roles}{$role_name}{sub_roles}}, @decl_args;
        } elsif ($decl eq 'hosts') {
 	 push @{$self->{roles}{$role_name}{hosts}}, @decl_args;
-       } elsif ($decl eq 'service') {
-	 push @{$self->{roles}{$role_name}{services}}, @decl_args;
-       } elsif ($decl eq 'crontab') {
-	 push @{$self->{roles}{$role_name}{crontabs}}, @decl_args;
        } elsif ($decl eq 'dir' && $#decl_args >= 1) {
 	 $self->{keywords}{$decl_args[0]} = $decl_args[1];
 	 push @{$self->{roles}{$role_name}{dirs}},
@@ -975,8 +836,16 @@ sub parse_role {
 	 push @{$self->{roles}{$role_name}{dirs}},
 	   $self->parse_standalone_file ($parse_state, @decl_args);
        }
-       elsif ($decl eq 'package') {
-	 push @{$self->{roles}{$role_name}{packages}}, @decl_args
+       elsif (defined( $ext_decls{$decl} )) {
+	 my $ext_cmd = $ext_decls{$decl};
+	 my $ext_pkg = $ext_cmd->{ext};
+	 my $ext_handler = $ext_cmd->{handler};
+	 my ($ext_obj) = grep { ref $_ eq $ext_pkg } @{$self->{extensions}};
+	 $self->{roles}{$role_name}{role_ext_state}{$ext_pkg} ||=
+	   $ext_pkg->new_role_config;
+	 &$ext_handler( $ext_obj,
+			$self->{roles}{$role_name}{role_ext_state}{$ext_pkg},
+			@decl_args );
        }
        else {
 	 $self->syntax_error ($parse_state);
@@ -1018,6 +887,11 @@ sub parse_dir {
 	 }
 	 $dir_spec->{tree} =
 	   $self->parse_file_spec ($parse_state, $dir_name, @declargs);
+       }
+       elsif ($decl eq 'forcelink') {
+	 my ($link_from, $link_to) = @declargs;
+	 push @{$dir_spec->{forcelinks}},
+	   { from => $link_from, to => $link_to };
        }
        else {
 	 $self->syntax_error ($parse_state,

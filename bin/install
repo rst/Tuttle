@@ -43,7 +43,7 @@ open (OUT, ">$temp_file") or die "Couldn't create $temp_file";
 
 MAILTO=sysadmin
 
-export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin:\$PATH
+PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin
 
 $rmin 21 * * * root   goldpull $module_name; /gold/$module_name/bin/tuttle-master-job
 EOF
