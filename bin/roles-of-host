@@ -1,0 +1,70 @@
+#! /usr/bin/perl -w
+
+#    Tuttle --- Tiny Utility Toolkit for Tweaking Large Environments
+#    Copyright (C) 2007  Smartleaf, Inc.
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+use FindBin;
+use File::Spec;
+use lib "${FindBin::Bin}/..";
+use Tuttle::Config;
+use strict;
+
+my $host = $ARGV[0];
+
+unless (defined($host)) {
+  print STDERR "No host given!\n";
+  exit 1;
+}
+
+if ($host !~ /\.com$/) {
+  print STDERR "$host must be a FQDN\n";
+  exit 1;
+}
+
+my $short_host = $host;
+$short_host =~ (s/\..*//);
+
+my @hosts = ($host, $short_host);
+my $seen_err = 0;
+my $seen_any = 0;
+
+chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
+
+for my $dir (<*>) {
+  my $file = "$dir/Roles.conf";
+  if (-f $file) {
+    eval {
+      my $config = Tuttle::Config->new ($dir, $file);
+      for my $role ($config->roles_of_hosts(\@hosts)) {
+	print "$dir:$role\n";
+	$seen_any = 1;
+      }
+    };
+    if ($@) {
+      print STDERR "Error in config $dir:\n $@";
+      $seen_err = 1;
+    }
+  }
+}
+
+if (! $seen_any ) {
+  printf "No roles!  Check for typos!\n"
+}
+
+exit 0
+
+	

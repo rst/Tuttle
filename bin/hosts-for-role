@@ -1,0 +1,86 @@
+#! /usr/bin/perl -w
+
+#    Tuttle --- Tiny Utility Toolkit for Tweaking Large Environments
+#    Copyright (C) 2007  Smartleaf, Inc.
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+use FindBin;
+use File::Spec;
+use lib "${FindBin::Bin}/..";
+use Tuttle::Config;
+use strict;
+
+my $qual_role = $ARGV[0];
+my $seen_err = 0;
+
+unless (defined($qual_role)) {
+  print STDERR "No role given!\n";
+  exit 1;
+}
+
+my ($config_name, $role);
+
+if ($qual_role =~ /^([^:]*):(.*)$/) {
+  $config_name = $1;
+  $role = $2;
+}
+else {
+  $role = $qual_role;
+}
+
+chdir "${FindBin::Bin}/.." or die "Could not chdir to ${FindBin::Bin}/..";
+
+if (defined($config_name)) {
+  &dump_hosts_for_role( $config_name, $role, 0 );
+}
+else {
+  for my $dir (<*>) {
+    &dump_hosts_for_role( $dir, $role, 1 );
+  }
+}
+
+exit $seen_err;
+
+sub dump_hosts_for_role {
+  my ($dir, $role, $wildcard_mode) = @_;
+  my $file = "$dir/Roles.conf";
+  if (! -f $file) {
+    if (!$wildcard_mode) {
+      print STDERR "No config $dir!\n";
+      exit 1
+    }
+  }
+  else {
+    eval {
+      my $config = Tuttle::Config->new ($dir, $file);
+      for my $host ($config->hosts_of_role($role)) {
+	if ($wildcard_mode) {
+	  print "$dir:$role $host\n"
+	}
+	else {
+	  print "$host\n";
+	}
+      }
+    };
+    if ($@) {
+      print STDERR "Error in config $dir:\n $@";
+      $seen_err = 1;
+    }
+  }
+}
+
+
+	
