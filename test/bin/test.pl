@@ -93,6 +93,19 @@ if (!$@) {
   die '"Successful" install with bad crontab?!';
 }
 
+eval {
+  $c = Tuttle::Config->new('bad_dir_test', "$base/bad_dir_test/Roles.conf")
+};
+
+if (!$@) {
+  die "'Dir' syntax error not detected";
+}
+else {
+  print "'Dir' syntax error detected --- $@\n"
+}
+
+# Test $tuttle:hosts:...$ and related functionality
+
 $c = Tuttle::Config->new ('hosts_of_role', 
 			  "$base/hosts_of_role_test/Roles.conf");
 
@@ -105,16 +118,147 @@ if ($c->keyword_value ('hosts:d') ne 'a1 a2 b1 b2 d1 d2'
   die "Can't compute roles of host"
 }
 
-eval {
-  $c = Tuttle::Config->new('bad_dir_test', "$base/bad_dir_test/Roles.conf")
-};
+die "Can't compute hosts_by_line" if
+         ($c->keyword_value ('hosts_by_line:d') . "\n" ne <<EOF);
+a1
+    a2
+    b1
+    b2
+    d1
+    d2
+EOF
 
-if (!$@) {
-  die "'Dir' syntax error not detected";
+sub check_finds_template_syntax_error {
+  my ($stuff) = @_;
+  my $filename = "$base/dummy_test_file";
+  open (OUT, ">$filename") or die "Couldn't open $filename";
+  print OUT $stuff;
+  close OUT or die "Couldn't write $filename";
+  eval {
+    $c->filtered_lines( $filename );
+  };
+  if (!$@) {
+    die "Fails to find syntax error in:\n$stuff"
+  }
+  unlink( $filename );
 }
-else {
-  print "'Dir' syntax error detected --- $@\n"
+
+&check_finds_template_syntax_error( <<'END' );
+  junkbefore $tuttle: if_hosts_for: d$
+  stuff
+  $tuttle:endif$
+END
+
+&check_finds_template_syntax_error( <<'END' );
+  $tuttle: if_hosts_for: d$ junkafter
+  stuff
+  $tuttle:endif$
+END
+
+&check_finds_template_syntax_error( <<'END' );
+  $tuttle: if_hosts_for: d$
+  stuff
+  junkbefore $tuttle:endif$
+END
+
+&check_finds_template_syntax_error( <<'END' );
+  $tuttle: if_hosts_for: d$
+  stuff
+  $tuttle:endif$ junkafter
+END
+
+&check_finds_template_syntax_error( <<'END' );
+  $tuttle: if_hosts_for: nosuchrole$
+  stuff
+  $tuttle:endif$
+END
+
+&check_finds_template_syntax_error( <<'END' ); # no nesting (yet?)
+  $tuttle: if_hosts_for: d$
+  $tuttle: if_hosts_for: c$
+  stuff
+  $tuttle:endif$
+  $tuttle:endif$
+END
+
+sub check_generates_text_for_template {
+  my ($stuff, $text) = @_;
+  my @lines = split("\n", $text);
+  my $generated_lines;
+  my $filename = "$base/dummy_test_file";
+  my $filename_gen = "$base/dummy_test_output";
+  open (OUT, ">$filename") or die "Couldn't open $filename";
+  print OUT $stuff;
+  close OUT or die "Couldn't write $filename";
+  eval {
+    $c->install_file_copy( $filename, $filename_gen );
+  };
+  if ($@) {
+    die "Template syntax error $@ in:\n$stuff"
+  }
+
+  open (GEN, "<$filename_gen") or die "Couldn't read $filename_gen";
+  my @gen_lines = <GEN>;
+  close( GEN );
+
+  my @test_lines = @gen_lines;
+
+  for my $expected_line (@lines) {
+    my $gen_line = shift @test_lines;
+    chomp $gen_line;
+    chomp $expected_line;
+    if ($gen_line ne $expected_line) {
+      print "Template expansion failure:\nINPUT:\n$stuff\nOUTPUT:\n";
+      print join('', @gen_lines);
+      print "EXPECTED:\n$text\n";
+      die "Template expansion failure";
+    }
+  }
+  unlink( $filename );
+  unlink( $filename_gen );
 }
+
+check_generates_text_for_template( <<'END_TEMPLATE', <<'END_OUTPUT' );
+
+  # foo
+  $tuttle: if_hosts_for: d$
+
+   d has hosts
+    $tuttle:hosts_by_line:d$
+
+   more mon config could go here
+    la la la
+
+  $tuttle: endif$
+
+  # bar
+  $tuttle: if_hosts_for: nohosts$
+    nohosts does not
+  $tuttle:endif$
+
+  # zot
+
+END_TEMPLATE
+
+  # foo
+
+   d has hosts
+    a1
+    a2
+    b1
+    b2
+    d1
+    d2
+
+   more mon config could go here
+    la la la
+
+
+  # bar
+
+  # zot
+
+END_OUTPUT
 
 # First test installation...
 

@@ -47,6 +47,7 @@ use Tuttle::OsPackages;
 use Tuttle::Crontabs;
 use Tuttle::Services;
 use Tuttle::Apache2Vhosts;
+use Tuttle::Monconfigs;
 
 =head1 NAME
 
@@ -491,6 +492,11 @@ directly or indirectly.
 
 sub hosts_of_role {
   my ($self, $role) = @_;
+
+  unless (defined($self->{roles}{$role})) {
+    die "unknown role $role";
+  }
+
   my %hosts;
   for my $role ($self->roles_having_subrole ($role)) {
     for my $host (@{$self->{roles}{$role}{hosts}}) {
@@ -573,12 +579,12 @@ sub install_file_copy {
 
   my $dest = $self->{install_prefix} . $declared_dest;
 
-  open (IN, "<$src") or die "Couldn't open $src";
+  my $lines = $self->filtered_lines( $src );
   open (OUT, ">$dest") or die "Couldn't open $dest";
 
   my $conf = $self->{config_name};
 
-  while (<IN>) {
+  foreach (@$lines) {
     $_ = $self->substitute_keywords ($_);
     (print OUT) or die "Couldn't write $dest";
   }
@@ -661,8 +667,13 @@ as well call $config->hosts_of_role directly).
 
 sub keyword_value {
   my ($self, $keyword) = @_;
+  $keyword =~ s/ //g;
   if ($keyword =~ /hosts:(.*)$/) {
     my $foo = join (' ', $self->hosts_of_role ($1));
+    return $foo
+  }
+  elsif ($keyword =~ /hosts_by_line:(.*)$/) {
+    my $foo = join ("\n    ", $self->hosts_of_role ($1));
     return $foo
   }
   elsif (!defined $self->{keywords}{$keyword}) {
@@ -671,10 +682,48 @@ sub keyword_value {
   return $self->{keywords}{$keyword};
 }
 
+sub filtered_lines {
+  my ($self, $filename) = @_;
+  my @lines;
+  my $skipping = 0;
+  my $inbody = 0;
+
+  open (IN, "<$filename") or die "Couldn't open $filename";
+
+  while (<IN>) {
+    if (m|^\s*\$tuttle:\s*if_hosts_for:\s*([^\$]+)\$\s*$|) {
+      if ($inbody) {
+	chomp;
+	die "$filename: nested \$tuttle: if_hosts_for: in '$_'"
+      }
+      $inbody = 1;
+      my @hosts = $self->hosts_of_role ($1);
+      unless ($#hosts >= 0) {
+	$skipping = 1;
+      }
+    }
+    elsif (/\$tuttle:\s*if_hosts_for/) {
+      die "$filename: \$tuttle: if_hosts_for not alone on line in '$_'"
+    }
+    elsif (/^\s*\$tuttle:\s*endif\s*\$\s*$/) {
+      $inbody = 0;
+      $skipping = 0;
+    }
+    elsif (/\$tuttle:\s*endif/) {
+      die "$filename: \$tuttle: endif not alone on line in '$_'"
+    }
+    elsif (!$skipping) {
+      push @lines, $_;
+    }
+  }
+
+  return \@lines;
+}
+
 sub check_file_keywords {
   my ($self, $file) = @_;
-  open (IN, "<$file") or die "Could not open $file";
-  while (<IN>) {
+  my $lines = $self->filtered_lines( $file );
+  foreach (@$lines) {
     while (/\$tuttle:([^\$]*)\$/) {
       my ($keyword) = $1;
       eval { $self->keyword_value ($keyword) };

@@ -32,6 +32,9 @@ role c
 
 role d
   hosts d1 d2
+
+role nohosts
+  dir foo /bar
 ==== ./gold/looptest d755
 ==== ./gold/looptest/Tuttle 644 JZp22DlsciPdUV89w/cHlA
 role a
