@@ -34,7 +34,7 @@ use base 'Tuttle::DdirExtension';
 sub dest_prefix {
   my ($self, $config_name) = @_;
   # TEMPORARY
-  return "/home/rst/sysadmin/mon/configs/modular/from_tuttle/${config_name}-"
+  return "/etc/mon/modular-config/from_tuttle/${config_name}-"
 }
 
 sub src_filename {
